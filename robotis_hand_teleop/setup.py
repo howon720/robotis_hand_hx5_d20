@@ -27,7 +27,10 @@ setup(
     entry_points={
         'console_scripts': [
             'hx5_d20_right_teleop = robotis_hand_teleop.hx5_d20_right_teleop:main', 
-            'hx5_d20_left_teleop = robotis_hand_teleop.hx5_d20_left_teleop:main'
+            'hx5_d20_left_teleop = robotis_hand_teleop.hx5_d20_left_teleop:main',
+            'loop_control = robotis_hand_teleop.loop_control:main',
+            'pick_joint = robotis_hand_teleop.pick_joint:main',
+            'finger_trajectory = robotis_hand_teleop.finger_trajectory:main',
         ],
     },
 )
