@@ -28,8 +28,10 @@ setup(
         'console_scripts': [
             'hx5_d20_right_teleop = robotis_hand_teleop.hx5_d20_right_teleop:main', 
             'hx5_d20_left_teleop = robotis_hand_teleop.hx5_d20_left_teleop:main',
-            'loop_control = robotis_hand_teleop.loop_control:main',
-            'pick_joint = robotis_hand_teleop.pick_joint:main',
+            'loop_control_left = robotis_hand_teleop.loop_control_left:main',
+            'loop_control_right = robotis_hand_teleop.loop_control_right:main',
+            'pick_joint_left = robotis_hand_teleop.pick_joint_left:main',
+            'pick_joint_right = robotis_hand_teleop.pick_joint_right:main',
             'finger_trajectory = robotis_hand_teleop.finger_trajectory:main',
         ],
     },
