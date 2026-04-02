@@ -33,6 +33,7 @@ setup(
             'pick_joint_left = robotis_hand_teleop.pick_joint_left:main',
             'pick_joint_right = robotis_hand_teleop.pick_joint_right:main',
             'finger_trajectory = robotis_hand_teleop.finger_trajectory:main',
+            'finger_pressure = robotis_hand_teleop.finger_pressure:main',
         ],
     },
 )

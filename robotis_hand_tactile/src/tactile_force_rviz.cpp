@@ -1,0 +1,353 @@
+#include "tactile_force_rviz.hpp"
+
+TactileForceRviz::TactileForceRviz()
+: Node("tactile_force_rviz"),
+  baseline_count_(0),
+  baseline_ready_(false)
+{
+  topic_ = declare_parameter<std::string>("topic", "/dynamic_joint_states");
+  sensor_prefix_ = declare_parameter<std::string>("sensor_prefix", "finger_r_sensor");
+  num_fingers_ = declare_parameter<int>("num_fingers", 5);
+  num_taxels_ = declare_parameter<int>("num_taxels", 9);
+  pressure_iface_prefix_ = declare_parameter<std::string>("pressure_iface_prefix", "Present Pressure");
+  update_hz_ = declare_parameter<double>("update_hz", 20.0);
+  use_best_effort_ = declare_parameter<bool>("use_best_effort", true);
+
+  baseline_seconds_ = declare_parameter<double>("baseline_seconds", 1.0);
+  ema_alpha_ = declare_parameter<double>("ema_alpha", 0.25);
+  deadband_ = declare_parameter<double>("deadband", 1.0);
+  clip_negative_ = declare_parameter<bool>("clip_negative", true);
+
+  marker_topic_ = declare_parameter<std::string>("marker_topic", "/tactile_force_markers");
+  marker_ns_ = declare_parameter<std::string>("marker_ns", "tactile_force");
+
+  finger_frames_ = declare_parameter<std::vector<std::string>>(
+    "finger_frames",
+    std::vector<std::string>{
+      "finger_end_r_link1",
+      "finger_end_r_link2",
+      "finger_end_r_link3",
+      "finger_end_r_link4",
+      "finger_end_r_link5"
+    });
+
+  taxel_pitch_x_ = declare_parameter<double>("taxel_pitch_x", 0.003);
+  taxel_pitch_y_ = declare_parameter<double>("taxel_pitch_y", 0.003);
+
+  lateral_gain_ = declare_parameter<double>("lateral_gain", 1.0);  // 숫자 클 수록 방향 민감도
+  normal_gain_ = declare_parameter<double>("normal_gain", 0.3);
+
+  force_to_arrow_scale_ = declare_parameter<double>("force_to_arrow_scale", 0.0005);  // 0.0001  : full size
+  min_arrow_len_ = declare_parameter<double>("min_arrow_len", 0.01);
+  max_arrow_len_ = declare_parameter<double>("max_arrow_len", 0.10);     
+  shaft_diameter_ = declare_parameter<double>("shaft_diameter", 0.003);
+  head_diameter_ = declare_parameter<double>("head_diameter", 0.006);
+  head_length_ = declare_parameter<double>("head_length", 0.01);
+
+  normal_sign_ = declare_parameter<double>("normal_sign", 1.0);
+
+  pressure_.assign(num_fingers_, std::vector<double>(num_taxels_, 0.0));
+  ema_.assign(num_fingers_, std::vector<double>(num_taxels_, 0.0));
+  baseline_.assign(num_fingers_, std::vector<double>(num_taxels_, 0.0));
+  baseline_sum_.assign(num_fingers_, std::vector<double>(num_taxels_, 0.0));
+
+  baseline_frames_ = std::max(1, static_cast<int>(update_hz_ * baseline_seconds_));
+  baseline_samples_per_finger_.assign(num_fingers_, 0);
+
+  init_taxel_positions();
+
+  auto qos = use_best_effort_
+    ? rclcpp::QoS(rclcpp::KeepLast(5)).best_effort().durability_volatile()
+    : rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile();
+
+  sub_ = create_subscription<control_msgs::msg::DynamicJointState>(
+    topic_, qos,
+    std::bind(&TactileForceRviz::callback, this, std::placeholders::_1));
+
+  marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic_, 10);
+
+  force_pub_ = create_publisher<std_msgs::msg::Float32MultiArray>(
+  "/tactile_force_per_finger", 10);
+
+  auto period = std::chrono::duration<double>(1.0 / std::max(update_hz_, 1.0));
+  timer_ = create_wall_timer(
+    std::chrono::duration_cast<std::chrono::milliseconds>(period),
+    std::bind(&TactileForceRviz::publish_markers, this));
+
+  RCLCPP_INFO(
+    get_logger(),
+    "Subscribing: %s, publishing markers: %s",
+    topic_.c_str(), marker_topic_.c_str());
+}
+
+// force pub
+double TactileForceRviz::compute_total_force(const std::vector<double> & p) const
+{
+  return std::accumulate(p.begin(), p.end(), 0.0);
+}
+
+void TactileForceRviz::init_taxel_positions()
+{
+  taxel_xy_.clear();
+  std::array<double, 3> xs = {-taxel_pitch_x_, 0.0, taxel_pitch_x_};
+  std::array<double, 3> ys = {-taxel_pitch_y_, 0.0, taxel_pitch_y_};
+
+  for (double y : ys) {
+    for (double x : xs) {
+      taxel_xy_.push_back({x, y});
+    }
+  }
+}
+
+int TactileForceRviz::finger_index_from_joint(const std::string & joint_name) const
+{
+  if (joint_name.rfind(sensor_prefix_, 0) != 0) {
+    return -1;
+  }
+
+  std::string suffix = joint_name.substr(sensor_prefix_.size());
+  if (suffix.empty()) {
+    return -1;
+  }
+
+  for (char c : suffix) {
+    if (!std::isdigit(c)) {
+      return -1;
+    }
+  }
+
+  int idx = std::stoi(suffix) - 1;
+  if (idx < 0 || idx >= num_fingers_) {
+    return -1;
+  }
+  return idx;
+}
+
+std::vector<double> TactileForceRviz::extract_pressures(
+  const control_msgs::msg::InterfaceValue & iv) const
+{
+  std::vector<double> vals(num_taxels_, 0.0);
+
+  for (size_t i = 0; i < iv.interface_names.size() && i < iv.values.size(); ++i) {
+    const auto & name = iv.interface_names[i];
+    for (int t = 1; t <= num_taxels_; ++t) {
+      std::string key = pressure_iface_prefix_ + " " + std::to_string(t);
+      if (name == key) {
+        vals[t - 1] = iv.values[i];
+        break;
+      }
+    }
+  }
+  return vals;
+}
+
+std::array<double, 3> TactileForceRviz::map_sensor_vector_to_link(
+  int finger_idx, double sx, double sy, double sn) const
+{
+  if (finger_idx == 0) {
+    return {sx, -sy, sn};
+  }
+
+  return {sn, sx, -sy};
+}
+
+void TactileForceRviz::callback(
+  const control_msgs::msg::DynamicJointState::SharedPtr msg)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  for (size_t j = 0; j < msg->joint_names.size() && j < msg->interface_values.size(); ++j) {
+    int finger_idx = finger_index_from_joint(msg->joint_names[j]);
+    if (finger_idx < 0) {
+      continue;
+    }
+
+    auto vals = extract_pressures(msg->interface_values[j]);
+
+    if (!baseline_ready_) {
+      accumulate_baseline(finger_idx, vals);
+    } else {
+      update_pressure(finger_idx, vals);
+    }
+    // update_pressure(finger_idx, vals);
+  }
+
+  if (!baseline_ready_) {
+  bool ready = true;
+  for (int f = 0; f < num_fingers_; ++f) {
+    if (baseline_samples_per_finger_[f] < baseline_frames_) {
+      ready = false;
+      break;
+    }
+  }
+
+  if (ready) {
+    finalize_baseline();
+  }
+}
+}
+
+void TactileForceRviz::accumulate_baseline(int finger_idx, const std::vector<double> & vals)
+{
+  for (int t = 0; t < num_taxels_; ++t) {
+    baseline_sum_[finger_idx][t] += vals[t];
+  }
+  baseline_samples_per_finger_[finger_idx] += 1;
+}
+
+void TactileForceRviz::update_pressure(int finger_idx, const std::vector<double> & vals)
+{
+  for (int t = 0; t < num_taxels_; ++t) {
+    double v = vals[t] - baseline_[finger_idx][t];
+
+    if (clip_negative_ && v < 0.0) {
+      v = 0.0;
+    }
+    if (v < deadband_) {
+      v = 0.0;
+    }
+
+    double prev = ema_[finger_idx][t];
+    ema_[finger_idx][t] = (1.0 - ema_alpha_) * prev + ema_alpha_ * v;
+    pressure_[finger_idx][t] = ema_[finger_idx][t];
+  }
+}
+
+void TactileForceRviz::finalize_baseline()
+{
+  for (int f = 0; f < num_fingers_; ++f) {
+    int count = std::max(baseline_samples_per_finger_[f], 1);
+    for (int t = 0; t < num_taxels_; ++t) {
+      baseline_[f][t] = baseline_sum_[f][t] / static_cast<double>(count);
+      ema_[f][t] = 0.0;
+      pressure_[f][t] = 0.0;
+    }
+  }
+  baseline_ready_ = true;
+  RCLCPP_INFO(get_logger(), "Baseline calibrated.");
+}
+
+std::array<double, 3> TactileForceRviz::compute_force_vector(
+  int finger_idx, const std::vector<double> & p) const
+{
+  double total = std::accumulate(p.begin(), p.end(), 0.0);
+  if (total <= 1e-6) {
+    return {0.0, 0.0, 0.0};
+  }
+
+  double cop_x = 0.0;
+  double cop_y = 0.0;
+  for (int i = 0; i < num_taxels_; ++i) {
+    cop_x += p[i] * taxel_xy_[i].first;
+    cop_y += p[i] * taxel_xy_[i].second;
+  }
+  cop_x /= total;
+  cop_y /= total;
+
+  double cop_x_norm = cop_x / std::max(taxel_pitch_x_, 1e-9);
+  double cop_y_norm = cop_y / std::max(taxel_pitch_y_, 1e-9);
+  double total_norm = total / 100.0;
+
+  double gain_scale = std::clamp((total - 20.0) / 80.0, 0.0, 1.0);
+  gain_scale = gain_scale * gain_scale;   // 약한 접촉에서 lateral 더 강하게 억제
+
+  double effective_lateral_gain = lateral_gain_ * gain_scale;
+
+  double sx = effective_lateral_gain * cop_x_norm;
+  double sy = effective_lateral_gain * cop_y_norm;
+  double sn = normal_sign_ * normal_gain_ * total_norm;
+
+  auto v = map_sensor_vector_to_link(finger_idx, sx, sy, sn);
+
+  double norm = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  if (norm <= 1e-9) {
+    return {0.0, 0.0, 0.0};
+  }
+
+  double arrow_len = std::clamp(
+    total * force_to_arrow_scale_,
+    min_arrow_len_,
+    max_arrow_len_);
+
+  return {
+    v[0] / norm * arrow_len,
+    v[1] / norm * arrow_len,
+    v[2] / norm * arrow_len
+  };
+}
+
+visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
+  int finger_idx, const std::array<double, 3> & vec) const
+{
+  visualization_msgs::msg::Marker m;
+  m.header.stamp = now();
+  m.header.frame_id = finger_frames_[finger_idx];
+  m.ns = marker_ns_;
+  m.id = finger_idx;
+  m.type = visualization_msgs::msg::Marker::ARROW;
+  m.action = visualization_msgs::msg::Marker::ADD;
+  m.frame_locked = true;
+
+  geometry_msgs::msg::Point start;
+  start.x = 0.0;
+  start.y = 0.0;
+  start.z = 0.0;
+
+  geometry_msgs::msg::Point end;
+  end.x = vec[0];
+  end.y = vec[1];
+  end.z = vec[2];
+
+  m.points.push_back(start);
+  m.points.push_back(end);
+
+  m.scale.x = shaft_diameter_;
+  m.scale.y = head_diameter_;
+  m.scale.z = head_length_;
+
+  static const std::array<std::array<float, 4>, 5> colors = {{
+    {1.0f, 0.2f, 0.2f, 1.0f},
+    {0.2f, 1.0f, 0.2f, 1.0f},
+    {0.2f, 0.4f, 1.0f, 1.0f},
+    {1.0f, 0.8f, 0.2f, 1.0f},
+    {0.8f, 0.2f, 1.0f, 1.0f}
+  }};
+
+  const auto & c = colors[finger_idx % colors.size()];
+  m.color.r = c[0];
+  m.color.g = c[1];
+  m.color.b = c[2];
+  m.color.a = c[3];
+
+  return m;
+}
+
+void TactileForceRviz::publish_markers()
+{
+  visualization_msgs::msg::MarkerArray markers;
+  std_msgs::msg::Float32MultiArray force_msg;
+
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  force_msg.data.resize(num_fingers_, 0.0f);
+
+  for (int f = 0; f < num_fingers_; ++f) {
+    auto vec = compute_force_vector(f, pressure_[f]);
+    markers.markers.push_back(make_arrow_marker(f, vec));
+
+    double total_force = std::accumulate(pressure_[f].begin(), pressure_[f].end(), 0.0);
+    force_msg.data[f] = static_cast<float>(total_force);
+  }
+
+  marker_pub_->publish(markers);
+  force_pub_->publish(force_msg);  // force pub
+}
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<TactileForceRviz>();
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  return 0;
+}

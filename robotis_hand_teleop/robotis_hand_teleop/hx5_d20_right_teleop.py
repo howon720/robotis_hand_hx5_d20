@@ -13,6 +13,7 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from std_msgs.msg import Int32
 
 
 HELP_MSG = """
@@ -38,6 +39,11 @@ ESC : quit
 
 ===========================================================
 """
+
+IDLE = 0
+GRASPING = 1
+HOLDING = 2
+RELEASING = 3
 
 class KeyboardController(Node):
     def __init__(self):
@@ -117,6 +123,19 @@ class KeyboardController(Node):
         self.get_logger().info('Waiting for /joint_states ...')
         self.rate = self.create_rate(10)
 
+        self.grasp_state_pub = self.create_publisher(
+            Int32,
+            '/grasp_state',
+            10
+        )
+        self.grasp_state = IDLE
+
+    def publish_grasp_state(self, state):
+        self.grasp_state = state
+        msg = Int32()
+        msg.data = state
+        self.grasp_state_pub.publish(msg)
+
     def enforce_fixed_joints(self):
         # Force a specific joint angle when starting
         idx1 = self.joint_names.index('finger_r_joint1')
@@ -124,6 +143,26 @@ class KeyboardController(Node):
 
         self.target_positions[idx1] = math.pi / 2.0
         self.target_positions[idx2] = -1 * math.pi / 2.0
+
+    def set_grasping(self):
+        # Force a specific joint angle when starting
+        idx1 = self.joint_names.index('finger_r_joint1')
+        idx2 = self.joint_names.index('finger_r_joint2')
+
+        self.target_positions[idx1] = 0.297
+        self.target_positions[idx2] = -1.792
+
+    def set_joint2(self):
+
+        idx11 = self.joint_names.index('finger_r_joint6')
+        idx12 = self.joint_names.index('finger_r_joint10')
+        idx13 = self.joint_names.index('finger_r_joint14')
+        idx14 = self.joint_names.index('finger_r_joint18')
+
+        self.target_positions[idx11] = 1.0
+        self.target_positions[idx12] = 1.0
+        self.target_positions[idx13] = 1.0
+        self.target_positions[idx14] = 1.0
     
     def toggle_joint_direction(self):
         self.single_joint_mode *= -1.0
@@ -197,21 +236,40 @@ class KeyboardController(Node):
         # self.print_targets()
 
     def open_all(self):
+        self.publish_grasp_state(RELEASING)  # grasping 신호 보내기 : 초반 무시용
+
         self.target_positions = self.initial_positions.copy()
+
+        self.set_grasping()  # grasping test 용
+        self.set_joint2()
         self.publish_trajectory()
         self.get_logger().info('Return to fixed initial pose')
+        
+        time.sleep(self.duration)
+        self.publish_grasp_state(IDLE)
 
 
     def close_all(self):
+        self.publish_grasp_state(GRASPING)
+
         for i in range(len(self.joint_names)):
             if i in self.fixed_indices:
                 continue
             else:
                 self.target_positions[i] = self.max_limit
+        
+        self.target_positions[3] = self.max_limit*2/3
+        self.target_positions[7] = self.max_limit*2/3
+        self.target_positions[11] = self.max_limit*2/3
+        self.target_positions[15] = self.max_limit*2/3
 
-        self.enforce_fixed_joints()
+        # self.enforce_fixed_joints()
+        self.set_grasping()  # grasping test 용
         self.publish_trajectory()
         self.get_logger().info('Close all')
+
+        time.sleep(self.duration + 1.0)
+        self.publish_grasp_state(HOLDING)   
 
     def print_targets(self):
         print("\nCurrent target positions")

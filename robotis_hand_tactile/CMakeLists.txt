@@ -1,0 +1,50 @@
+cmake_minimum_required(VERSION 3.8)
+project(robotis_hand_tactile)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(control_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+set(ROS2_PACKAGES
+    rclcpp
+    std_msgs
+    geometry_msgs
+    visualization_msgs
+    control_msgs
+    sensor_msgs
+    trajectory_msgs)
+
+add_executable(tactile_force_rviz src/tactile_force_rviz.cpp)
+target_include_directories(tactile_force_rviz PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(tactile_force_rviz ${ROS2_PACKAGES})
+install(TARGETS tactile_force_rviz
+        DESTINATION lib/${PROJECT_NAME})
+
+add_executable(reactive_force src/reactive_force.cpp)
+target_include_directories(reactive_force PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(reactive_force ${ROS2_PACKAGES})
+install(TARGETS reactive_force
+        DESTINATION lib/${PROJECT_NAME})
+
+install(PROGRAMS
+  scripts/finger_pressure.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY include/
+  DESTINATION include
+)
