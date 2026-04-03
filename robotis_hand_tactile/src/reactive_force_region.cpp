@@ -1,4 +1,4 @@
-#include "reactive_force.hpp"
+#include "reactive_force_region.hpp"
 
 #include <numeric>
 #include <algorithm>
@@ -16,36 +16,23 @@ ReactiveForceNode::ReactiveForceNode()
     "traj_topic", "/right_hand_controller/joint_trajectory");
 
   history_len_ = this->declare_parameter<int>("history_len", 3);
-  startup_ignore_steps_ = this->declare_parameter<int>("startup_ignore_steps", 20);   // 초반 몇 초 무시
-  cooldown_steps_default_ = this->declare_parameter<int>("cooldown_steps", 5);  // release 사이 step
+  startup_ignore_steps_ = this->declare_parameter<int>("startup_ignore_steps", 20);
+  cooldown_steps_default_ = this->declare_parameter<int>("cooldown_steps", 5);
   traj_time_ = this->declare_parameter<double>("traj_time", 0.1);
 
   joint_min_ = this->declare_parameter<double>("joint_min", -1.5);
   joint_max_ = this->declare_parameter<double>("joint_max", 1.5);
 
+  delta_threshold_ = this->declare_parameter<double>("delta_threshold", 2.0);
+  variation_threshold_ = this->declare_parameter<double>("variation_threshold", 1.0);
+  min_contact_force_ = this->declare_parameter<double>("min_contact_force", 1.0);
+
+  post_grasp_ignore_steps_ = this->declare_parameter<int>("post_grasp_ignore_steps", 50);
+
   finger_names_ = {"thumb", "index", "middle", "ring", "little"};
 
-  delta_threshold_["thumb"]  = this->declare_parameter<double>("delta_threshold.thumb", 20.0);
-  delta_threshold_["index"]  = this->declare_parameter<double>("delta_threshold.index", 20.0);
-  delta_threshold_["middle"] = this->declare_parameter<double>("delta_threshold.middle", 20.0);
-  delta_threshold_["ring"]   = this->declare_parameter<double>("delta_threshold.ring", 20.0);
-  delta_threshold_["little"] = this->declare_parameter<double>("delta_threshold.little", 20.0);
-
-  variation_threshold_["thumb"]  = this->declare_parameter<double>("variation_threshold.thumb", 5.0);
-  variation_threshold_["index"]  = this->declare_parameter<double>("variation_threshold.index", 5.0);
-  variation_threshold_["middle"] = this->declare_parameter<double>("variation_threshold.middle", 5.0);
-  variation_threshold_["ring"]   = this->declare_parameter<double>("variation_threshold.ring", 5.0);
-  variation_threshold_["little"] = this->declare_parameter<double>("variation_threshold.little", 5.0);
-
-  min_contact_force_["thumb"]  = this->declare_parameter<double>("min_contact_force.thumb", 5.0);
-  min_contact_force_["index"]  = this->declare_parameter<double>("min_contact_force.index", 5.0);
-  min_contact_force_["middle"] = this->declare_parameter<double>("min_contact_force.middle", 5.0);
-  min_contact_force_["ring"]   = this->declare_parameter<double>("min_contact_force.ring", 5.0);
-  min_contact_force_["little"] = this->declare_parameter<double>("min_contact_force.little", 5.0);
-
-  // release
+  // 1:UP 2:DOWN 3:LEFT 4:RIGHT
   joint_release_step_["thumb"] = {
-    {"finger_r_joint2", -0.1},
     {"finger_r_joint3", -0.1},
     {"finger_r_joint4", -0.1},
   };
@@ -70,6 +57,12 @@ ReactiveForceNode::ReactiveForceNode()
     {"finger_r_joint20", -0.1},
   };
 
+  joint_region34_step_["thumb"]  = {"finger_r_joint2",  0.1};
+  joint_region34_step_["index"]  = {"finger_r_joint5",  0.1};
+  joint_region34_step_["middle"] = {"finger_r_joint9",  0.1};
+  joint_region34_step_["ring"]   = {"finger_r_joint13", 0.1};
+  joint_region34_step_["little"] = {"finger_r_joint17", 0.1};
+
   for (const auto & finger : finger_names_) {
     cooldown_counter_[finger] = 0;
   }
@@ -87,7 +80,7 @@ ReactiveForceNode::ReactiveForceNode()
 
   grasp_state_sub_ = this->create_subscription<std_msgs::msg::Int32>(
     "/grasp_state", 10,
-    std::bind(&ReactiveForceNode::graspStateCallback, this, std::placeholders::_1));  
+    std::bind(&ReactiveForceNode::graspStateCallback, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "ReactiveForceNode started");
   RCLCPP_INFO(this->get_logger(), " force_topic      : %s", force_topic_.c_str());
@@ -107,7 +100,6 @@ void ReactiveForceNode::graspStateCallback(const std_msgs::msg::Int32::SharedPtr
   int prev_state = grasp_state_;
   grasp_state_ = msg->data;
 
-  // moment ignore
   if (prev_state == 1 && grasp_state_ == 2) {
     post_grasp_ignore_counter_ = post_grasp_ignore_steps_;
   }
@@ -148,37 +140,44 @@ double ReactiveForceNode::slope(const std::deque<double> & data) const
 
 void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
 {
-    if (grasp_state_ == 1 || grasp_state_ == 3) {
-        return;
-    }
+  if (grasp_state_ == 1 || grasp_state_ == 3) {
+    return;
+  }
 
-    if (post_grasp_ignore_counter_ > 0) {
-        post_grasp_ignore_counter_--;
-        return;
-    }
+  if (post_grasp_ignore_counter_ > 0) {
+    post_grasp_ignore_counter_--;
+    return;
+  }
 
-  if (msg->data.size() < finger_names_.size()*3) {   // data 구조 바뀌면 여기 부분 수정
+  const size_t values_per_finger = 3;
+  const size_t expected_size = finger_names_.size() * values_per_finger;
+
+  if (msg->data.size() < expected_size) {
     RCLCPP_WARN(
       this->get_logger(),
       "Force array too small. expected=%zu, got=%zu",
-      finger_names_.size(), msg->data.size());
+      expected_size, msg->data.size());
     return;
   }
 
   step_count_++;
 
-  std::vector<std::string> release_fingers;
+  std::vector<std::pair<std::string, int>> release_fingers;
 
   for (size_t i = 0; i < finger_names_.size(); ++i) {
     const auto & finger = finger_names_[i];
-    size_t base = i * 3;
+    const size_t base = i * values_per_finger;
 
-    double force  = static_cast<double>(msg->data[base + 2]);
+    const int region = static_cast<int>(msg->data[base + 0]);
+    const double angle_deg = static_cast<double>(msg->data[base + 1]);
+    const double force = static_cast<double>(msg->data[base + 2]);
+
+    (void)angle_deg;
 
     auto & hist = force_history_[finger];
     hist.push_back(force);
     if (static_cast<int>(hist.size()) > history_len_) {
-        hist.pop_front();
+      hist.pop_front();
     }
 
     if (cooldown_counter_[finger] > 0) {
@@ -197,26 +196,28 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
       continue;
     }
 
-    double avg = mean(hist);
-    double var = variation(hist);
-    double d = force - avg;
-    double sl = slope(hist);
+    if (region < 1 || region > 4) {
+      continue;
+    }
 
-    // pub 조건
-    bool trigger =
-      (force > min_contact_force_[finger]) &&
-      (d > delta_threshold_[finger]) &&
-      (var > variation_threshold_[finger]); // &&
-    //   (sl > delta_threshold_[finger] * 0.5);
+    const double avg = mean(hist);
+    const double var = variation(hist);
+    const double d = force - avg;
+    const double sl = slope(hist);
+
+    const bool trigger =
+      (force > min_contact_force_) &&
+      (d > delta_threshold_) &&
+      (var > variation_threshold_);
 
     if (trigger) {
-      release_fingers.push_back(finger);
+      release_fingers.push_back({finger, region});
       cooldown_counter_[finger] = cooldown_steps_default_;
 
       RCLCPP_INFO(
         this->get_logger(),
-        "[RELEASE] %s force=%.2f avg=%.2f delta=%.2f var=%.2f slope=%.2f",
-        finger.c_str(), force, avg, d, var, sl);
+        "[RELEASE] %s region=%d force=%.2f avg=%.2f delta=%.2f var=%.2f slope=%.2f",
+        finger.c_str(), region, force, avg, d, var, sl);
     }
   }
 
@@ -225,7 +226,8 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
   }
 }
 
-void ReactiveForceNode::publishReleaseTrajectory(const std::vector<std::string> & release_fingers)
+void ReactiveForceNode::publishReleaseTrajectory(
+  const std::vector<std::pair<std::string, int>> & release_fingers)
 {
   trajectory_msgs::msg::JointTrajectory traj;
   traj.header.stamp = this->now();
@@ -233,15 +235,51 @@ void ReactiveForceNode::publishReleaseTrajectory(const std::vector<std::string> 
   trajectory_msgs::msg::JointTrajectoryPoint point;
   point.time_from_start = rclcpp::Duration::from_seconds(traj_time_);
 
-  for (const auto & finger : release_fingers) {
-    auto finger_it = joint_release_step_.find(finger);
-    if (finger_it == joint_release_step_.end()) {
-      continue;
+  for (const auto & item : release_fingers) {
+    const std::string & finger = item.first;
+    const int region = item.second;
+
+    // region 1,2: 기존 3개 joint 사용
+    if (region == 1 || region == 2) {
+      auto finger_it = joint_release_step_.find(finger);
+      if (finger_it == joint_release_step_.end()) {
+        continue;
+      }
+
+      const double direction_scale = (region == 1) ? 1.0 : -1.0;
+
+      for (const auto & joint_pair : finger_it->second) {
+        const std::string & joint_name = joint_pair.first;
+        const double step = joint_pair.second * direction_scale;
+
+        auto joint_it = current_joint_positions_.find(joint_name);
+        if (joint_it == current_joint_positions_.end()) {
+          RCLCPP_WARN(
+            this->get_logger(),
+            "Current joint position not found for %s",
+            joint_name.c_str());
+          continue;
+        }
+
+        const double current_pos = joint_it->second;
+        const double target_pos = std::clamp(current_pos + step, joint_min_, joint_max_);
+
+        traj.joint_names.push_back(joint_name);
+        point.positions.push_back(target_pos);
+      }
     }
 
-    for (const auto & joint_pair : finger_it->second) {
-      const std::string & joint_name = joint_pair.first;
-      double step = joint_pair.second;
+    // region 3,4: 손가락별 joint 1개만 사용
+    else if (region == 3 || region == 4) {
+      auto finger_it = joint_region34_step_.find(finger);
+      if (finger_it == joint_region34_step_.end()) {
+        continue;
+      }
+
+      const std::string & joint_name = finger_it->second.first;
+      const double base_step = finger_it->second.second;
+      const double direction_scale = (region == 3) ? 1.0 : -1.0;
+      const double step = base_step * direction_scale;
 
       auto joint_it = current_joint_positions_.find(joint_name);
       if (joint_it == current_joint_positions_.end()) {
@@ -252,8 +290,8 @@ void ReactiveForceNode::publishReleaseTrajectory(const std::vector<std::string> 
         continue;
       }
 
-      double current_pos = joint_it->second;
-      double target_pos = std::clamp(current_pos + step, joint_min_, joint_max_);
+      const double current_pos = joint_it->second;
+      const double target_pos = std::clamp(current_pos + step, joint_min_, joint_max_);
 
       traj.joint_names.push_back(joint_name);
       point.positions.push_back(target_pos);

@@ -40,6 +40,24 @@ ament_target_dependencies(reactive_force ${ROS2_PACKAGES})
 install(TARGETS reactive_force
         DESTINATION lib/${PROJECT_NAME})
 
+add_executable(reactive_force_region src/reactive_force_region.cpp)
+target_include_directories(reactive_force_region PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(reactive_force_region ${ROS2_PACKAGES})
+install(TARGETS reactive_force_region
+        DESTINATION lib/${PROJECT_NAME})
+
+add_executable(tactile_grasp_controller_node 
+              src/tactile_grasp_controller_node.cpp
+              src/tactile_grasp_controller.cpp)
+target_include_directories(tactile_grasp_controller_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(tactile_grasp_controller_node ${ROS2_PACKAGES})
+install(TARGETS tactile_grasp_controller_node
+        DESTINATION lib/${PROJECT_NAME})
+
 install(PROGRAMS
   scripts/finger_pressure.py
   DESTINATION lib/${PROJECT_NAME}
