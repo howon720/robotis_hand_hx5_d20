@@ -180,6 +180,18 @@ def generate_launch_description():
         condition=IfCondition(start_rviz),
     )
 
+    tactile_sensor_republisher = Node(
+        package='robotis_hand_bringup',
+        executable='tactile_sensor_republisher',
+        name='tactile_sensor_republisher',
+        output='screen',
+        parameters=[
+            {'input_topic': '/dynamic_joint_states'},
+            {'output_topic': '/tactile_sensor'},
+            {'sensor_prefix': 'finger_r_sensor'},
+        ],
+    )
+
     # Event handlers to ensure order of execution
     delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
         event_handler=OnProcessExit(
@@ -224,6 +236,7 @@ def generate_launch_description():
             control_node,
             robot_controller_spawner,
             robot_state_publisher_node,
+            tactile_sensor_republisher,
             delay_rviz_after_joint_state_broadcaster_spawner,
             delay_current_command_process_after_controllers,
             delay_joint_trajectory_executor_after_controllers,

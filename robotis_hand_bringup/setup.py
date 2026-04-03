@@ -29,6 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             'joint_trajectory_executor = robotis_hand_bringup.joint_trajectory_executor:main',
+            'tactile_sensor_republisher = robotis_hand_bringup.tactile_sensor_republisher:main',
         ],
     },
 )
