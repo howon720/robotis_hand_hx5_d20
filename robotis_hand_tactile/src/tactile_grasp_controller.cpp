@@ -100,7 +100,7 @@ void TactileGraspController::init_joint_name_list()
     "finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"
   };
 
-  // teleop open_all 기준 pose
+  // open_all 기준 pose
   open_reference_positions_ = {
     0.297,  -1.792, 0.0, 0.0,   // 1~4
     0.0,     1.0,   0.0, 0.0,   // 5~8
@@ -113,11 +113,13 @@ void TactileGraspController::init_joint_name_list()
 void TactileGraspController::tactile_callback(
   const std_msgs::msg::Float32MultiArray::SharedPtr msg)
 {
+  // Topic 값
   // [thumb_region, thumb_angle, thumb_value,
   //  index_region, index_angle, index_value,
   //  middle_region, middle_angle, middle_value,
   //  ring_region, ring_angle, ring_value,
   //  little_region, little_angle, little_value]
+
   if (msg->data.size() < 15) {
     RCLCPP_WARN_THROTTLE(
       this->get_logger(), *this->get_clock(), 2000,
@@ -125,6 +127,7 @@ void TactileGraspController::tactile_callback(
     return;
   }
 
+  // 
   const std::array<int, 5> value_indices = {2, 5, 8, 11, 14};
 
   if (use_baseline_ && !baseline_ready_) {
@@ -371,7 +374,7 @@ bool TactileGraspController::all_fingers_contacted() const
   return true;
 }
 
-bool TactileGraspController::detect_slip(int finger_idx) const
+bool TactileGraspController::detect_slip(int finger_idx) const  // 나중에 사용
 {
   const double current = fingers_[finger_idx].filtered_force;
   const double prev = prev_filtered_force_[finger_idx];

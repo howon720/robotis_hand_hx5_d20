@@ -73,6 +73,10 @@ TactileForceRviz::TactileForceRviz()
   timer_ = create_wall_timer(
     std::chrono::duration_cast<std::chrono::milliseconds>(period),
     std::bind(&TactileForceRviz::publish_markers, this));
+
+  //pose 
+  cop_marker_offset_ = declare_parameter<double>("cop_marker_offset", 0.01);
+  cop_marker_scale_ = declare_parameter<double>("cop_marker_scale", 0.006);
 }
 
 double TactileForceRviz::compute_total_force(const std::vector<double> & p) const
@@ -323,8 +327,29 @@ std::string TactileForceRviz::region_to_string(int region) const
   }
 }
 
+geometry_msgs::msg::Point TactileForceRviz::cop_point_in_frame(
+  int finger_idx, const DirectionInfo & info) const
+{
+  geometry_msgs::msg::Point p;
+
+  const double vis_cop_x = info.cop_x * 2.5;
+  const double vis_cop_y = info.cop_y * 2.5;
+
+  if (finger_idx == 0) {
+    p.x = vis_cop_x;
+    p.y = -vis_cop_y;
+    p.z = cop_marker_offset_;
+  } else {
+    p.x = cop_marker_offset_;
+    p.y = vis_cop_x;
+    p.z = -vis_cop_y;
+  }
+
+  return p;
+}
+
 visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
-  int finger_idx, const std::array<double, 3> & vec) const
+  int finger_idx, const DirectionInfo & info) const
 {
   visualization_msgs::msg::Marker m;
   m.header.stamp = now();
@@ -335,28 +360,12 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
   m.action = visualization_msgs::msg::Marker::ADD;
   m.frame_locked = true;
 
-  const double x_offset = 0.01;
+  geometry_msgs::msg::Point end = cop_point_in_frame(finger_idx, info);
+  geometry_msgs::msg::Point start = end;
 
-  geometry_msgs::msg::Point start;
-  geometry_msgs::msg::Point end;
-
-  if (finger_idx == 0) {  // thumb
-    start.x = vec[0];
-    start.y = vec[1];
-    start.z = x_offset + vec[2];
-
-    end.x = 0.0;
-    end.y = 0.0;
-    end.z = x_offset;
-  } else {
-    start.x = x_offset + vec[0];
-    start.y = vec[1];
-    start.z = vec[2];
-
-    end.x = x_offset;
-    end.y = 0.0;
-    end.z = 0.0;
-  }
+  start.x += info.vec[0];
+  start.y += info.vec[1];
+  start.z += info.vec[2];
 
   m.points.push_back(start);
   m.points.push_back(end);
@@ -364,6 +373,71 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
   m.scale.x = shaft_diameter_;
   m.scale.y = head_diameter_;
   m.scale.z = head_length_;
+
+  static const std::array<std::array<float, 4>, 5> colors = {{
+    {1.0f, 0.2f, 0.2f, 1.0f},
+    {0.2f, 1.0f, 0.2f, 1.0f},
+    {0.2f, 0.4f, 1.0f, 1.0f},
+    {1.0f, 0.8f, 0.2f, 1.0f},
+    {0.8f, 0.2f, 1.0f, 1.0f}
+  }};
+
+  const auto & c = colors[finger_idx % colors.size()];
+  m.color.r = c[0];
+  m.color.g = c[1];
+  m.color.b = c[2];
+  m.color.a = c[3];
+
+  // 힘 low X
+  if (info.total_force <= 1e-6) {
+    m.color.a = 0.0f;
+  }
+
+  return m;
+}
+
+//publish_pose_marker
+visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(
+  int finger_idx, const DirectionInfo & info) const
+{
+  visualization_msgs::msg::Marker m;
+  m.header.stamp = now();
+  m.header.frame_id = finger_frames_[finger_idx];
+  m.ns = marker_ns_ + "_cop";
+  m.id = finger_idx;
+  m.type = visualization_msgs::msg::Marker::SPHERE;
+  m.action = visualization_msgs::msg::Marker::ADD;
+  m.frame_locked = true;
+
+  if (info.total_force <= 1e-6) {
+    m.scale.x = 0.001;
+    m.scale.y = 0.001;
+    m.scale.z = 0.001;
+    m.color.a = 0.0;
+    return m;
+  }
+
+  auto p = cop_point_in_frame(finger_idx, info);
+  m.pose.position = p;
+
+  // if (finger_idx == 0) {
+  //   m.pose.position.x = info.cop_x * 2.0;
+  //   m.pose.position.y = -info.cop_y * 2.5;
+  //   m.pose.position.z = cop_marker_offset_;
+  // } else {
+  //   m.pose.position.x = cop_marker_offset_;
+  //   m.pose.position.y = info.cop_x * 2.0;
+  //   m.pose.position.z = -info.cop_y * 2.5;
+  // }
+
+  m.pose.orientation.x = 0.0;
+  m.pose.orientation.y = 0.0;
+  m.pose.orientation.z = 0.0;
+  m.pose.orientation.w = 1.0;
+
+  m.scale.x = cop_marker_scale_;
+  m.scale.y = cop_marker_scale_;
+  m.scale.z = cop_marker_scale_;
 
   static const std::array<std::array<float, 4>, 5> colors = {{
     {1.0f, 0.2f, 0.2f, 1.0f},
@@ -395,8 +469,9 @@ void TactileForceRviz::publish_markers()
 
   for (int f = 0; f < num_fingers_; ++f) {
     auto info = compute_direction_info(f, pressure_[f]);
-
-    markers.markers.push_back(make_arrow_marker(f, info.vec));
+    
+    markers.markers.push_back(make_cop_marker(f, info));
+    markers.markers.push_back(make_arrow_marker(f, info));
 
     double angle_deg = info.angle_rad * 180.0 / M_PI;
 

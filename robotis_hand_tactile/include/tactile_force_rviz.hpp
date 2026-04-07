@@ -66,7 +66,17 @@ private:
   std::string region_to_string(int region) const;
 
   visualization_msgs::msg::Marker make_arrow_marker(
-    int finger_idx, const std::array<double, 3> & vec) const;
+    int finger_idx, const DirectionInfo & info) const;
+
+  geometry_msgs::msg::Point cop_point_in_frame(
+    int finger_idx, const DirectionInfo & info) const;
+
+
+  double cop_marker_offset_;
+  double cop_marker_scale_;
+
+  visualization_msgs::msg::Marker make_cop_marker(
+    int finger_idx, const DirectionInfo & info) const;
 
 private:
   std::string topic_;

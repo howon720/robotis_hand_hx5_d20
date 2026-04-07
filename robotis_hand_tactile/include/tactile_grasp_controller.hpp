@@ -74,7 +74,7 @@ private:
 
   double control_rate_hz_{20.0};
   double alpha_{0.2};
-  double contact_threshold_{100000.0};  // contact 임계값
+  double contact_threshold_{15.0};  // contact 임계값 : 사용 X 시 무한대 
   double force_target_scale_{1.2};  // HOLD 할 때의 목표값  : contact 기준 1.2 sclae
   double kf_{0.002};
   double deadband_low_{-0.03};   // 오차 : 손떨림 보정
