@@ -15,6 +15,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(robotis_interfaces REQUIRED)
 set(ROS2_PACKAGES
     rclcpp
     std_msgs
@@ -22,7 +23,8 @@ set(ROS2_PACKAGES
     visualization_msgs
     control_msgs
     sensor_msgs
-    trajectory_msgs)
+    trajectory_msgs
+    robotis_interfaces)
 
 add_executable(tactile_force_rviz src/tactile_force_rviz.cpp)
 target_include_directories(tactile_force_rviz PUBLIC
@@ -58,6 +60,15 @@ ament_target_dependencies(tactile_grasp_controller_node ${ROS2_PACKAGES})
 install(TARGETS tactile_grasp_controller_node
         DESTINATION lib/${PROJECT_NAME})
 
+add_executable(tactile_grasp_controller_hold 
+              src/tactile_grasp_controller_hold.cpp)
+target_include_directories(tactile_grasp_controller_hold PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(tactile_grasp_controller_hold ${ROS2_PACKAGES})
+install(TARGETS tactile_grasp_controller_hold
+        DESTINATION lib/${PROJECT_NAME})
+
 install(PROGRAMS
   scripts/finger_pressure.py
   DESTINATION lib/${PROJECT_NAME}
@@ -66,3 +77,5 @@ install(PROGRAMS
 install(DIRECTORY include/
   DESTINATION include
 )
+
+ament_package()

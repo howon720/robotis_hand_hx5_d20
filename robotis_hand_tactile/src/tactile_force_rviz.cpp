@@ -245,7 +245,7 @@ std::array<double, 3> TactileForceRviz::compute_force_vector(
   double cop_y_norm = cop_y / std::max(taxel_pitch_y_, 1e-9);
   double total_norm = total / 100.0;
 
-  double gain_scale = std::clamp((total - 20.0) / 80.0, 0.0, 1.0);
+  double gain_scale = std::clamp((total - 20.0) / 80.0, 0.0, 1.0);   // high gain effect
   gain_scale = gain_scale * gain_scale;
 
   double effective_lateral_gain = lateral_gain_ * gain_scale;
@@ -273,6 +273,7 @@ std::array<double, 3> TactileForceRviz::compute_force_vector(
   };
 }
 
+// for reactive_force_region.cpp
 int TactileForceRviz::classify_region(double cop_x, double cop_y, double eps_x, double eps_y) const
 {
   if (std::abs(cop_x) < eps_x && std::abs(cop_y) < eps_y) {
@@ -310,28 +311,19 @@ TactileForceRviz::DirectionInfo TactileForceRviz::compute_direction_info(
   double eps_y = center_region_ratio_ * taxel_pitch_y_;
 
   info.region = classify_region(info.cop_x, info.cop_y, eps_x, eps_y);
-  info.angle_rad = std::atan2(-info.cop_y, info.cop_x);   // 각도 조정 : 현재 y값 inverse
+  info.angle_rad = std::atan2(-info.cop_y, info.cop_x);   // angle adjustment : y-value inverse now
   info.vec = compute_force_vector(finger_idx, p);
 
   return info;
 }
 
-std::string TactileForceRviz::region_to_string(int region) const
-{
-  switch (region) {
-    case UP: return "UP";
-    case DOWN: return "DOWN";
-    case LEFT: return "LEFT";
-    case RIGHT: return "RIGHT";
-    default: return "CENTER";
-  }
-}
-
+// determining the visualization pose value
 geometry_msgs::msg::Point TactileForceRviz::cop_point_in_frame(
   int finger_idx, const DirectionInfo & info) const
 {
   geometry_msgs::msg::Point p;
 
+  // visualize scale
   const double vis_cop_x = info.cop_x * 2.5;
   const double vis_cop_y = info.cop_y * 2.5;
 
@@ -388,8 +380,8 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
   m.color.b = c[2];
   m.color.a = c[3];
 
-  // 힘 low X
-  if (info.total_force <= 1e-6) {
+  // Low force X
+  if (info.total_force <= 3.0) {
     m.color.a = 0.0f;
   }
 
@@ -417,19 +409,7 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(
     return m;
   }
 
-  auto p = cop_point_in_frame(finger_idx, info);
-  m.pose.position = p;
-
-  // if (finger_idx == 0) {
-  //   m.pose.position.x = info.cop_x * 2.0;
-  //   m.pose.position.y = -info.cop_y * 2.5;
-  //   m.pose.position.z = cop_marker_offset_;
-  // } else {
-  //   m.pose.position.x = cop_marker_offset_;
-  //   m.pose.position.y = info.cop_x * 2.0;
-  //   m.pose.position.z = -info.cop_y * 2.5;
-  // }
-
+  m.pose.position = cop_point_in_frame(finger_idx, info);
   m.pose.orientation.x = 0.0;
   m.pose.orientation.y = 0.0;
   m.pose.orientation.z = 0.0;
@@ -463,8 +443,7 @@ void TactileForceRviz::publish_markers()
 
   std::lock_guard<std::mutex> lock(mutex_);
 
-  // finger당 3개 값:
-  // [region, angle_deg, total_force]
+  // [region, angle_deg, total_force] each finger
   force_msg.data.reserve(num_fingers_ * 3);
 
   for (int f = 0; f < num_fingers_; ++f) {

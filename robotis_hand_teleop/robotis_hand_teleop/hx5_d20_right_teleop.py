@@ -152,18 +152,38 @@ class KeyboardController(Node):
         self.target_positions[idx1] = 0.297
         self.target_positions[idx2] = -1.792
 
-    def set_joint2(self):
+        # # tennis_ball
+        # self.target_positions[idx1] = 0.0
+        # self.target_positions[idx2] = -1.68
+
+    def set_joint2(self):   # 1.0
 
         idx11 = self.joint_names.index('finger_r_joint6')
         idx12 = self.joint_names.index('finger_r_joint10')
         idx13 = self.joint_names.index('finger_r_joint14')
         idx14 = self.joint_names.index('finger_r_joint18')
 
-        self.target_positions[idx11] = 1.0
-        self.target_positions[idx12] = 1.0
-        self.target_positions[idx13] = 1.0
-        self.target_positions[idx14] = 1.0
-    
+        self.target_positions[idx11] = 0.8
+        self.target_positions[idx12] = 0.8
+        self.target_positions[idx13] = 0.8
+        self.target_positions[idx14] = 0.8
+
+    def set_joint_tennisball(self):   # 1.0
+
+        self.target_positions[13] = self.max_limit
+        self.target_positions[14] = self.max_limit
+        self.target_positions[15] = self.max_limit
+        self.target_positions[17] = self.max_limit
+        self.target_positions[18] = self.max_limit
+        self.target_positions[19] = self.max_limit
+
+    def set_joint_papercup(self):   # 1.0
+
+        self.target_positions[17] = self.max_limit
+        self.target_positions[18] = self.max_limit
+        self.target_positions[19] = self.max_limit
+
+
     def toggle_joint_direction(self):
         self.single_joint_mode *= -1.0
         mode_str = '+' if self.single_joint_mode > 0 else '-'
@@ -242,6 +262,8 @@ class KeyboardController(Node):
 
         self.set_grasping()  # grasping test 용
         self.set_joint2()
+        # self.set_joint_tennisball()
+        self.set_joint_papercup()
         self.publish_trajectory()
         self.get_logger().info('Return to fixed initial pose')
         

@@ -1,10 +1,14 @@
 services:
   robotis_hand:
     container_name: robotis_hand
+<<<<<<< HEAD
     image: robotis/robotis-hand2:latest
     build:
       context: .
       dockerfile: Dockerfile
+=======
+    image: robotis/robotis-hand:0.0.3
+>>>>>>> origin/feature-pressure
     tty: true
     restart: always
     cap_add:
@@ -19,7 +23,6 @@ services:
     environment:
      - DISPLAY=${DISPLAY}
      - QT_X11_NO_MITSHM=1
-     # - RMW_IMPLEMENTATION=rmw_zenoh_cpp
     volumes:
       - /dev:/dev
       - /dev/shm:/dev/shm
