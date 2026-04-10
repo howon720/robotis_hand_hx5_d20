@@ -52,7 +52,8 @@ install(TARGETS reactive_force_region
 
 add_executable(tactile_grasp_controller_node 
               src/tactile_grasp_controller_node.cpp
-              src/tactile_grasp_controller.cpp)
+              src/tactile_grasp_controller.cpp
+              src/finger_ik_solver.cpp)
 target_include_directories(tactile_grasp_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -67,6 +68,16 @@ target_include_directories(tactile_grasp_controller_hold PUBLIC
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(tactile_grasp_controller_hold ${ROS2_PACKAGES})
 install(TARGETS tactile_grasp_controller_hold
+        DESTINATION lib/${PROJECT_NAME})
+
+add_executable(finger_ik_testbench
+              src/finger_ik_testbench.cpp
+              src/finger_ik_solver.cpp)
+target_include_directories(finger_ik_testbench PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(finger_ik_testbench ${ROS2_PACKAGES})
+install(TARGETS finger_ik_testbench
         DESTINATION lib/${PROJECT_NAME})
 
 install(PROGRAMS

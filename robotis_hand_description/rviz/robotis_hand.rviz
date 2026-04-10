@@ -314,7 +314,8 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        {}
+        tactile_force: true
+        tactile_force_cop: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -375,18 +376,18 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.04105927422642708
-        Y: 0.007394351996481419
-        Z: 0.12497188150882721
+        X: 0.05228990688920021
+        Y: -0.008172915317118168
+        Z: 0.12087511271238327
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.28000012040138245
+      Pitch: 0.10000023990869522
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.04681960493326187
+      Yaw: 0.13681773841381073
     Saved: ~
 Window Geometry:
   Displays:
@@ -404,5 +405,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1333
-  X: 2109
-  Y: 159
+  X: 2507
+  Y: 133

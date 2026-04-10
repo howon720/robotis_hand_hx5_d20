@@ -152,8 +152,8 @@ class KeyboardController(Node):
         self.target_positions[idx1] = 0.297
         self.target_positions[idx2] = -1.792
 
-        # # tennis_ball
-        # self.target_positions[idx1] = 0.0
+        # # tennis
+        # self.target_positions[idx1] = 0.12
         # self.target_positions[idx2] = -1.68
 
     def set_joint2(self):   # 1.0
@@ -263,7 +263,7 @@ class KeyboardController(Node):
         self.set_grasping()  # grasping test 용
         self.set_joint2()
         # self.set_joint_tennisball()
-        self.set_joint_papercup()
+        # self.set_joint_papercup()
         self.publish_trajectory()
         self.get_logger().info('Return to fixed initial pose')
         

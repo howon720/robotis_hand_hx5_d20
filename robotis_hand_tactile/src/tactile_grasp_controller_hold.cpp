@@ -206,6 +206,14 @@ void TactileGraspController::handle_idle()
      // IDLE
 }
 
+double TactileGraspController::finger_contact_threshold(int finger_idx) const
+{
+  if (finger_idx == 0) {
+    return contact_threshold_ * thumb_contact_ratio_;
+  }
+  return contact_threshold_;
+}
+
 void TactileGraspController::handle_close()
 {
   for (int i = 0; i < k_num_fingers; ++i) {
@@ -217,7 +225,10 @@ void TactileGraspController::handle_close()
         finger.current_joint_targets[j] = clamp(finger.current_joint_targets[j],finger.joint_min[j], finger.joint_max[j]);
       }
 
-      if (finger.filtered_force >= contact_threshold_) {
+      // if (finger.filtered_force >= contact_threshold_) {
+      //   finger.contact_detected = true;
+      //   contact_force_[i] = finger.filtered_force;
+      if (finger.filtered_force >= finger_contact_threshold(i)) {
         finger.contact_detected = true;
         contact_force_[i] = finger.filtered_force;
 
