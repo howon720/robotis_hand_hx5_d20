@@ -146,7 +146,6 @@ private:
   void handle_idle();
   void handle_close();
   void handle_hold();
-  void handle_open();
 
   void set_desired_force();
   void regulate_grasp_force(int finger_idx);
@@ -164,7 +163,6 @@ private:
   void shift_thumb_y(int finger_idx, double delta1, double delta2);
   void grasp_234(int finger_idx, double step);
   void release_234(int finger_idx, double step);
-  void mixed_bot_step(int finger_idx, double step);
 
   // helpers
   void reset_grasp();
@@ -177,37 +175,25 @@ private:
   double get_open_pos(const std::string& joint_name) const;
   double clamp(double v, double min_v, double max_v) const;
 
-  std::string state_str(State s) const;
   std::string correction_str(CorrectionType t) const;
 
-  // force 분리
-  bool need_regrasp(int finger_idx) const;
-  bool update_regrasp(int finger_idx);
-
   // each finger vel
+  double finger_contact_threshold(int finger_idx) const;
   double finger_step_scale(int finger_idx) const;
   double max_filtered_force() const;
 
-  // thumb & little
-  double finger_contact_threshold(int finger_idx) const;
-  void update_little_joint1();
-  bool TL_regrasp_flag() const;
-  bool TL_regrasp_done() const;
-  void reset_TL_regrasp();
-
   // blocked min_max
-  bool can_run_correction_step(int finger_idx, CorrectionType type) const;
-  bool all_corrections_blocked() const;
+  bool is_at_joint_limit(int finger_idx, CorrectionType type) const;
 
   // ik
-  bool apply_x_correction_by_ik(int finger_idx, bool forward_y, double cost);
+  bool correction_ik(int finger_idx, bool forward_y);
   std::array<double, 3> get_planar_q(int finger_idx) const;
   void set_planar_q(int finger_idx, const std::array<double, 3>& q);
 
   bool is_y_correction(CorrectionType type) const;
   bool is_x_correction(CorrectionType type) const;
-  bool all_stage_corrections_blocked(HoldCorrectionStage stage) const;
-  bool all_force_contact_satisfied() const;
+  bool correction_blocked(HoldCorrectionStage stage) const;
+  bool all_finger_contacted() const;
 
 private:
   std::mutex mutex_;
@@ -243,53 +229,37 @@ private:
 
   int baseline_sample_count_{30};
 
-  //
-  double ema_alpha_{0.2};
+  // CoP
+  double ema_alpha_{0.2}; // 이전 force 적용 비율
 
   double close_step_{0.01};
-  double open_step_{0.02};
 
   // cylinder_tape : 70(50) , dynamixel_box : 40 , tennisball : 30  , papercup : 10
-  double contact_threshold_{30}; // threshold
+  double contact_threshold_{30}; // threshold   avg : 30
 
-  double force_kp_{0.002};
-  double deadband_L{5.0}; // 있어야하는지 없어도 되는지 확인해보기
+  double force_kp_{0.002}; // force error 값 계수
+  double deadband_L{5.0};  // 있어야하는지 없어도 되는지 확인해보기
   double deadband_H{5.0};
   double feedback_max_delta_{0.01}; // feedback max step
 
   double min_force_for_correction_{10.0};
 
   // cost
-  double y_center_ratio_threshold_{0.30}; // dead-zone(0~1)    : org 0.35
-  double y_cost_trigger_threshold_{0.05}; // correction 시작 최소 cost
-  double x_center_ratio_threshold_{0.50}; // top down    : 70 almost ignore    best : 60
-  double x_cost_trigger_threshold_{0.10};
-
+  double y_center_threshold_{0.20}; // dead-zone(0~1)    : org 0.35
+  double cost_threshold_{0.10};     // correction 시작 최소 cost
+  double x_center_threshold_{0.50}; // top down    : 70 almost ignore    best : 60
   int phase_step_{4};
 
-  double release_step_base_{0.03}; // CoP X Y 사용 step
-  double grasp_step_base_{0.03};
-  double joint1_shift_step_{0.02}; // org : 0.01
-
-  // regrasp 분리
-  double regrasp_trigger_ratio_{0.7};
-  int regrasp_stable_count_{3}; // 몇 tick 연속 안정되면 종료
-  double regrasp_step_{0.02};
+  double y_corr_step_{0.03};  // CoP X Y 사용 step
+  double shift_step_{0.02};   // org : 0.01
+  double regrasp_step_{0.02}; // corr 중 regrasp
 
   // finger 마다 속도 다르게
   double min_step_scale_{0.3};
   double max_step_scale_{1.0};
 
-  // little 0.2 regrasp
-  bool TL_regrasp_mode_{false};
-  double thumb_contact_ratio_{2.0};  // thumb contact = other finger threshold 2x
-  double regrasp_force_ratio_{1.5};  // 재그립 완료 기준 = 평소 threshold의 1.5배
-  double little_regrasp_delta_{1.0}; // little joint1 누적 변화량 기준
-  double TL_grasp_step_{0.01};
-
-  // IK
-  double ik_y_shift_base_{0.003}; // 3 mm
-  double ik_min_cost_scale_{0.3};
+  double thumb_contact_ratio_{2.0}; // thumb contact = other finger threshold 2x
+  double regrasp_force_ratio_{1.5}; // 재그립 완료 기준 = 평소 threshold의 1.5배
 };
 
 } // namespace robotis_hand_tactile

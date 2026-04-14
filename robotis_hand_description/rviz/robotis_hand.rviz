@@ -278,12 +278,6 @@ Visualization Manager:
       Tree:
         world:
           hx5_d20_right_base:
-            finger_r_link1:
-              finger_r_link2:
-                finger_r_link3:
-                  finger_r_link4:
-                    finger_end_r_link1:
-                      {}
             finger_r_link13:
               finger_r_link14:
                 finger_r_link15:
@@ -303,19 +297,14 @@ Visualization Manager:
                     finger_end_r_link2:
                       {}
             finger_r_link9:
-              finger_r_link10:
-                finger_r_link11:
-                  finger_r_link12:
-                    finger_end_r_link3:
-                      {}
+              {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        tactile_force: true
-        tactile_force_cop: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile

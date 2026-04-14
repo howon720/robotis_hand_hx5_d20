@@ -31,21 +31,20 @@ public:
 
     // /joint_states : rad
 
-    finger_joint_names_[0] = { "finger_r_joint6", "finger_r_joint7", "finger_r_joint8" };
-    finger_joint_names_[1] = { "finger_r_joint10", "finger_r_joint11", "finger_r_joint12" };
-    finger_joint_names_[2] = { "finger_r_joint14", "finger_r_joint15", "finger_r_joint16" };
-    finger_joint_names_[3] = { "finger_r_joint18", "finger_r_joint19", "finger_r_joint20" };
+    finger_joint_names_[0] = {"finger_r_joint6", "finger_r_joint7", "finger_r_joint8"};
+    finger_joint_names_[1] = {"finger_r_joint10", "finger_r_joint11", "finger_r_joint12"};
+    finger_joint_names_[2] = {"finger_r_joint14", "finger_r_joint15", "finger_r_joint16"};
+    finger_joint_names_[3] = {"finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
 
     all_joint_names_ = {
-      "finger_r_joint1", "finger_r_joint2", "finger_r_joint3", "finger_r_joint4", "finger_r_joint5", "finger_r_joint6", "finger_r_joint7", "finger_r_joint8", "finger_r_joint9", "finger_r_joint10", "finger_r_joint11", "finger_r_joint12", "finger_r_joint13", "finger_r_joint14", "finger_r_joint15", "finger_r_joint16", "finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"
-    };
+        "finger_r_joint1", "finger_r_joint2", "finger_r_joint3", "finger_r_joint4", "finger_r_joint5", "finger_r_joint6", "finger_r_joint7", "finger_r_joint8", "finger_r_joint9", "finger_r_joint10", "finger_r_joint11", "finger_r_joint12", "finger_r_joint13", "finger_r_joint14", "finger_r_joint15", "finger_r_joint16", "finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
 
     std::array<FingerPlanarIk::FingerModel, 4> ik_models{};
     for (int i = 0; i < 4; ++i) {
-      ik_models[i].joint_min = { -1.5, -1.5, -1.5 };
-      ik_models[i].joint_max = { 1.5, 1.5, 1.5 };
+      ik_models[i].joint_min = {-1.5, -1.5, -1.5};
+      ik_models[i].joint_max = {1.5, 1.5, 1.5};
 
-      ik_models[i].link_lengths = { 0.0235, 0.0355, 0.0355 };
+      ik_models[i].link_lengths = {0.0235, 0.0355, 0.0355};
     }
 
     ik_solver_ = std::make_unique<FingerPlanarIk>(ik_models);
@@ -187,11 +186,10 @@ private:
     }
 
     const std::array<std::string, 4> finger_names = {
-      "index", "middle", "ring", "little"
-    };
+        "index", "middle", "ring", "little"};
 
     std::array<std::array<double, 3>, 4> q_targets{};
-    std::array<bool, 4> ik_success{ false, false, false, false };
+    std::array<bool, 4> ik_success{false, false, false, false};
 
     RCLCPP_INFO(this->get_logger(), "===== Finger IK test =====");
 
@@ -283,10 +281,10 @@ private:
   }
 
 private:
-  double delta_y_{ 0.000 };
-  double delta_z_{ 0.000 };
-  double test_period_sec_{ 1.0 };
-  double move_time_sec_{ 1.0 };
+  double delta_y_{0.000};
+  double delta_z_{0.000};
+  double test_period_sec_{1.0};
+  double move_time_sec_{1.0};
 
   std::unique_ptr<FingerPlanarIk> ik_solver_;
   std::array<std::array<std::string, 3>, 4> finger_joint_names_{};

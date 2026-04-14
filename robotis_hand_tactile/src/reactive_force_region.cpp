@@ -28,39 +28,39 @@ ReactiveForceNode::ReactiveForceNode()
 
   post_grasp_ignore_steps_ = this->declare_parameter<int>("post_grasp_ignore_steps", 50);
 
-  finger_names_ = { "thumb", "index", "middle", "ring", "little" };
+  finger_names_ = {"thumb", "index", "middle", "ring", "little"};
 
   // 1:UP 2:DOWN 3:LEFT 4:RIGHT
   joint_release_step_["thumb"] = {
-    { "finger_r_joint3", -0.1 },
-    { "finger_r_joint4", -0.1 },
+      {"finger_r_joint3", -0.1},
+      {"finger_r_joint4", -0.1},
   };
   joint_release_step_["index"] = {
-    { "finger_r_joint6", -0.1 },
-    { "finger_r_joint7", -0.1 },
-    { "finger_r_joint8", -0.1 },
+      {"finger_r_joint6", -0.1},
+      {"finger_r_joint7", -0.1},
+      {"finger_r_joint8", -0.1},
   };
   joint_release_step_["middle"] = {
-    { "finger_r_joint10", -0.1 },
-    { "finger_r_joint11", -0.1 },
-    { "finger_r_joint12", -0.1 },
+      {"finger_r_joint10", -0.1},
+      {"finger_r_joint11", -0.1},
+      {"finger_r_joint12", -0.1},
   };
   joint_release_step_["ring"] = {
-    { "finger_r_joint14", -0.1 },
-    { "finger_r_joint15", -0.1 },
-    { "finger_r_joint16", -0.1 },
+      {"finger_r_joint14", -0.1},
+      {"finger_r_joint15", -0.1},
+      {"finger_r_joint16", -0.1},
   };
   joint_release_step_["little"] = {
-    { "finger_r_joint18", -0.1 },
-    { "finger_r_joint19", -0.1 },
-    { "finger_r_joint20", -0.1 },
+      {"finger_r_joint18", -0.1},
+      {"finger_r_joint19", -0.1},
+      {"finger_r_joint20", -0.1},
   };
 
-  joint_region34_step_["thumb"] = { "finger_r_joint2", 0.1 };
-  joint_region34_step_["index"] = { "finger_r_joint5", 0.1 };
-  joint_region34_step_["middle"] = { "finger_r_joint9", 0.1 };
-  joint_region34_step_["ring"] = { "finger_r_joint13", 0.1 };
-  joint_region34_step_["little"] = { "finger_r_joint17", 0.1 };
+  joint_region34_step_["thumb"] = {"finger_r_joint2", 0.1};
+  joint_region34_step_["index"] = {"finger_r_joint5", 0.1};
+  joint_region34_step_["middle"] = {"finger_r_joint9", 0.1};
+  joint_region34_step_["ring"] = {"finger_r_joint13", 0.1};
+  joint_region34_step_["little"] = {"finger_r_joint17", 0.1};
 
   for (const auto& finger : finger_names_) {
     cooldown_counter_[finger] = 0;
@@ -202,7 +202,7 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
         (var > variation_threshold_);
 
     if (trigger) {
-      release_fingers.push_back({ finger, region });
+      release_fingers.push_back({finger, region});
       cooldown_counter_[finger] = cooldown_steps_default_;
 
       RCLCPP_INFO(

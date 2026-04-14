@@ -29,7 +29,7 @@ TactileForceRviz::TactileForceRviz()
           "finger_end_r_link2",
           "finger_end_r_link3",
           "finger_end_r_link4",
-          "finger_end_r_link5" });
+          "finger_end_r_link5"});
 
   taxel_pitch_x_ = declare_parameter<double>("taxel_pitch_x", 0.003);
   taxel_pitch_y_ = declare_parameter<double>("taxel_pitch_y", 0.003);
@@ -82,12 +82,12 @@ double TactileForceRviz::compute_total_force(const std::vector<double>& p) const
 
 void TactileForceRviz::init_taxel_positions() {
   taxel_xy_.clear();
-  std::array<double, 3> xs = { -taxel_pitch_x_, 0.0, taxel_pitch_x_ };
-  std::array<double, 3> ys = { -taxel_pitch_y_, 0.0, taxel_pitch_y_ };
+  std::array<double, 3> xs = {-taxel_pitch_x_, 0.0, taxel_pitch_x_};
+  std::array<double, 3> ys = {-taxel_pitch_y_, 0.0, taxel_pitch_y_};
 
   for (double y : ys) {
     for (double x : xs) {
-      taxel_xy_.push_back({ x, y });
+      taxel_xy_.push_back({x, y});
     }
   }
 }
@@ -135,10 +135,10 @@ std::vector<double> TactileForceRviz::extract_pressures(
 std::array<double, 3> TactileForceRviz::map_sensor_vector_to_link(
     int finger_idx, double sx, double sy, double sn) const {
   if (finger_idx == 0) {
-    return { sx, -sy, sn };
+    return {sx, -sy, sn};
   }
 
-  return { sn, sx, -sy };
+  return {sn, sx, -sy};
 }
 
 void TactileForceRviz::callback(
@@ -216,7 +216,7 @@ std::array<double, 3> TactileForceRviz::compute_force_vector(
     int finger_idx, const std::vector<double>& p) const {
   double total = std::accumulate(p.begin(), p.end(), 0.0);
   if (total <= 1e-6) {
-    return { 0.0, 0.0, 0.0 };
+    return {0.0, 0.0, 0.0};
   }
 
   double cop_x = 0.0;
@@ -245,7 +245,7 @@ std::array<double, 3> TactileForceRviz::compute_force_vector(
 
   double norm = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
   if (norm <= 1e-9) {
-    return { 0.0, 0.0, 0.0 };
+    return {0.0, 0.0, 0.0};
   }
 
   double arrow_len = std::clamp(
@@ -254,10 +254,9 @@ std::array<double, 3> TactileForceRviz::compute_force_vector(
       max_arrow_len_);
 
   return {
-    v[0] / norm * arrow_len,
-    v[1] / norm * arrow_len,
-    v[2] / norm * arrow_len
-  };
+      v[0] / norm * arrow_len,
+      v[1] / norm * arrow_len,
+      v[2] / norm * arrow_len};
 }
 
 // for reactive_force_region.cpp
@@ -281,7 +280,7 @@ TactileForceRviz::DirectionInfo TactileForceRviz::compute_direction_info(
   if (info.total_force <= 1e-6) {
     info.region = CENTER;
     info.angle_rad = 0.0;
-    info.vec = { 0.0, 0.0, 0.0 };
+    info.vec = {0.0, 0.0, 0.0};
     return info;
   }
 
@@ -349,11 +348,11 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
   m.scale.y = head_diameter_;
   m.scale.z = head_length_;
 
-  static const std::array<std::array<float, 4>, 5> colors = { { { 1.0f, 0.2f, 0.2f, 1.0f },
-      { 0.2f, 1.0f, 0.2f, 1.0f },
-      { 0.2f, 0.4f, 1.0f, 1.0f },
-      { 1.0f, 0.8f, 0.2f, 1.0f },
-      { 0.8f, 0.2f, 1.0f, 1.0f } } };
+  static const std::array<std::array<float, 4>, 5> colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
+                                                              {0.2f, 1.0f, 0.2f, 1.0f},
+                                                              {0.2f, 0.4f, 1.0f, 1.0f},
+                                                              {1.0f, 0.8f, 0.2f, 1.0f},
+                                                              {0.8f, 0.2f, 1.0f, 1.0f}}};
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];
@@ -399,11 +398,11 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(
   m.scale.y = cop_marker_scale_;
   m.scale.z = cop_marker_scale_;
 
-  static const std::array<std::array<float, 4>, 5> colors = { { { 1.0f, 0.2f, 0.2f, 1.0f },
-      { 0.2f, 1.0f, 0.2f, 1.0f },
-      { 0.2f, 0.4f, 1.0f, 1.0f },
-      { 1.0f, 0.8f, 0.2f, 1.0f },
-      { 0.8f, 0.2f, 1.0f, 1.0f } } };
+  static const std::array<std::array<float, 4>, 5> colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
+                                                              {0.2f, 1.0f, 0.2f, 1.0f},
+                                                              {0.2f, 0.4f, 1.0f, 1.0f},
+                                                              {1.0f, 0.8f, 0.2f, 1.0f},
+                                                              {0.8f, 0.2f, 1.0f, 1.0f}}};
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];

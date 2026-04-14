@@ -22,7 +22,7 @@ ReactiveForceNode::ReactiveForceNode()
   joint_min_ = this->declare_parameter<double>("joint_min", -1.5);
   joint_max_ = this->declare_parameter<double>("joint_max", 1.5);
 
-  finger_names_ = { "thumb", "index", "middle", "ring", "little" };
+  finger_names_ = {"thumb", "index", "middle", "ring", "little"};
 
   delta_threshold_["thumb"] = this->declare_parameter<double>("delta_threshold.thumb", 20.0);
   delta_threshold_["index"] = this->declare_parameter<double>("delta_threshold.index", 20.0);
@@ -44,29 +44,29 @@ ReactiveForceNode::ReactiveForceNode()
 
   // release
   joint_release_step_["thumb"] = {
-    { "finger_r_joint2", -0.1 },
-    { "finger_r_joint3", -0.1 },
-    { "finger_r_joint4", -0.1 },
+      {"finger_r_joint2", -0.1},
+      {"finger_r_joint3", -0.1},
+      {"finger_r_joint4", -0.1},
   };
   joint_release_step_["index"] = {
-    { "finger_r_joint6", -0.1 },
-    { "finger_r_joint7", -0.1 },
-    { "finger_r_joint8", -0.1 },
+      {"finger_r_joint6", -0.1},
+      {"finger_r_joint7", -0.1},
+      {"finger_r_joint8", -0.1},
   };
   joint_release_step_["middle"] = {
-    { "finger_r_joint10", -0.1 },
-    { "finger_r_joint11", -0.1 },
-    { "finger_r_joint12", -0.1 },
+      {"finger_r_joint10", -0.1},
+      {"finger_r_joint11", -0.1},
+      {"finger_r_joint12", -0.1},
   };
   joint_release_step_["ring"] = {
-    { "finger_r_joint14", -0.1 },
-    { "finger_r_joint15", -0.1 },
-    { "finger_r_joint16", -0.1 },
+      {"finger_r_joint14", -0.1},
+      {"finger_r_joint15", -0.1},
+      {"finger_r_joint16", -0.1},
   };
   joint_release_step_["little"] = {
-    { "finger_r_joint18", -0.1 },
-    { "finger_r_joint19", -0.1 },
-    { "finger_r_joint20", -0.1 },
+      {"finger_r_joint18", -0.1},
+      {"finger_r_joint19", -0.1},
+      {"finger_r_joint20", -0.1},
   };
 
   for (const auto& finger : finger_names_) {
