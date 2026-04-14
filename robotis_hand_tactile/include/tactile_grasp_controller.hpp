@@ -23,11 +23,9 @@
 #include <numeric>
 #include <sstream>
 
-namespace robotis_hand_tactile
-{
+namespace robotis_hand_tactile {
 
-class TactileGraspController : public rclcpp::Node
-{
+class TactileGraspController : public rclcpp::Node {
 public:
   TactileGraspController();
 
@@ -35,16 +33,13 @@ private:
   static constexpr int fingers_num = 5;
   static constexpr int tactiles_num = 9;
 
-  enum class State
-  {
+  enum class State {
     IDLE,
     CLOSE,
-    HOLD,
-    OPEN
+    HOLD
   };
 
-  enum class CorrectionType
-  {
+  enum class CorrectionType {
     NONE,
     X_TOP,
     X_BOT,
@@ -52,8 +47,13 @@ private:
     Y_RIGHT
   };
 
-  struct CopInfo
-  {
+  enum class HoldCorrectionStage {
+    Y_FIRST,
+    X_SECOND
+  };
+  HoldCorrectionStage hold_correction_stage_{HoldCorrectionStage::Y_FIRST};
+
+  struct CopInfo {
     std::array<double, tactiles_num> pressure{};
     double total_force{0.0};
 
@@ -83,8 +83,7 @@ private:
     double x_bot_cost{0.0};
   };
 
-  struct Finger
-  {
+  struct Finger {
     std::string name;
     std::array<std::string, 4> joint_names{};
     std::array<double, 4> joint_min{};
@@ -109,8 +108,7 @@ private:
     double joint1_motion_accum{0.0};
   };
 
-  struct CorrectionPlan
-  {
+  struct CorrectionPlan {
     bool active{false};
     CorrectionType type{CorrectionType::NONE};
     int phase{0};
@@ -118,8 +116,7 @@ private:
     double cost{0.0};
   };
 
-  struct CorrectionDecision
-  {
+  struct CorrectionDecision {
     CorrectionType type{CorrectionType::NONE};
     double cost{0.0};
   };
@@ -138,11 +135,11 @@ private:
   // pressure parse/update
   bool check_msg(const robotis_interfaces::msg::HandPressures::SharedPtr msg) const;
   std::array<Hx5d20SensorData, fingers_num> parse_sensors(const robotis_interfaces::msg::HandPressures::SharedPtr msg) const;
-  void update_pressure(const std::array<Hx5d20SensorData, fingers_num> & sensors);
+  void update_pressure(const std::array<Hx5d20SensorData, fingers_num>& sensors);
 
   // tactile analysis
-  CopInfo calc_cop(int finger_idx, const std::array<double, tactiles_num> & p) const;
-  std::optional<CorrectionDecision> pick_correction(const CopInfo & info) const;
+  CopInfo calc_cop(int finger_idx, const std::array<double, tactiles_num>& p) const;
+  std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const;
 
   // control loop
   void control_loop();
@@ -156,13 +153,12 @@ private:
 
   void start_correction(int finger_idx);
   void apply_correction(int finger_idx);
-  bool run_correction(int finger_idx, CorrectionPlan & plan);
+  bool run_correction(int finger_idx, CorrectionPlan& plan);
 
   void grasp_step_hold(int finger_idx, double step);
   void release_step_hold(int finger_idx, double step);
 
-  void apply_ratio_step(int finger_idx, const std::array<int, 3> & local_joint_ids,
-                        const std::array<double, 3> & ratios, double signed_step);
+  void apply_ratio_step(int finger_idx, const std::array<int, 3>& local_joint_ids, const std::array<double, 3>& ratios, double signed_step);
 
   void shift_joint1(int finger_idx, double delta);
   void shift_thumb_y(int finger_idx, double delta1, double delta2);
@@ -176,9 +172,9 @@ private:
   bool all_contacted() const;
 
   void publish_traj();
-  bool get_target(const std::string & joint_name, double & target) const;
-  double get_joint_pos(const std::string & joint_name) const;
-  double get_open_pos(const std::string & joint_name) const;
+  bool get_target(const std::string& joint_name, double& target) const;
+  double get_joint_pos(const std::string& joint_name) const;
+  double get_open_pos(const std::string& joint_name) const;
   double clamp(double v, double min_v, double max_v) const;
 
   std::string state_str(State s) const;
@@ -206,7 +202,12 @@ private:
   // ik
   bool apply_x_correction_by_ik(int finger_idx, bool forward_y, double cost);
   std::array<double, 3> get_planar_q(int finger_idx) const;
-  void set_planar_q(int finger_idx, const std::array<double, 3> & q);
+  void set_planar_q(int finger_idx, const std::array<double, 3>& q);
+
+  bool is_y_correction(CorrectionType type) const;
+  bool is_x_correction(CorrectionType type) const;
+  bool all_stage_corrections_blocked(HoldCorrectionStage stage) const;
+  bool all_force_contact_satisfied() const;
 
 private:
   std::mutex mutex_;
@@ -222,9 +223,9 @@ private:
   std::array<CorrectionPlan, fingers_num> correction_plans_{};
   std::array<double, fingers_num> desired_force_{};
 
-  std::vector<std::string> all_hand_joint_names_;
-  std::vector<double> open_reference_positions_;
-  std::map<std::string, double> joint_position_map_;
+  std::vector<std::string> hand_joint_names_;
+  std::vector<double> init_positions_;
+  std::map<std::string, double> curr_joint_;
 
   std::array<std::pair<double, double>, tactiles_num> tactile_xy_{};
 
@@ -233,49 +234,47 @@ private:
   bool joint_received_{false};
   bool baseline_{false};
 
-  // params
-  double control_rate_hz_{20.0};   // handle_hold rate   50ms 0.05sec
+  // 시작 전 초기 사항
+  double control_hz_{20.0}; // handle_hold rate   50ms 0.05sec
   double trajectory_dt_{0.05};
 
-  double tactile_x_{0.02};  // 2cm
-  double tactile_y_{0.02};  // 2cm
+  double tactile_x_{0.02}; // 2cm
+  double tactile_y_{0.02}; // 2cm
 
   int baseline_sample_count_{30};
 
-  // 
+  //
   double ema_alpha_{0.2};
 
   double close_step_{0.01};
   double open_step_{0.02};
 
   // cylinder_tape : 70(50) , dynamixel_box : 40 , tennisball : 30  , papercup : 10
-  double contact_threshold_{40};   // threshold
+  double contact_threshold_{30}; // threshold
 
   double force_kp_{0.002};
-  double deadband_L{5.0};
+  double deadband_L{5.0}; // 있어야하는지 없어도 되는지 확인해보기
   double deadband_H{5.0};
-  double feedback_max_delta_{0.01};  // feedback max step
+  double feedback_max_delta_{0.01}; // feedback max step
 
   double min_force_for_correction_{10.0};
-  double X_diff_threshold_{5000.0};
-  double Y_diff_threshold_{5.0};      // 이것도 contact_threshold 에 비례해서 나와야 함.    : 이렇게 정해져 있는 값보다는 cost 기반으로 바꾸긴 해야할 듯
 
   // cost
-  double y_center_ratio_threshold_{0.30};   // dead-zone(0~1)    : org 0.35
-  double y_cost_trigger_threshold_{0.10};   // correction 시작 최소 cost
-  double x_center_ratio_threshold_{0.60};   // top down    : 70 almost ignore
+  double y_center_ratio_threshold_{0.30}; // dead-zone(0~1)    : org 0.35
+  double y_cost_trigger_threshold_{0.05}; // correction 시작 최소 cost
+  double x_center_ratio_threshold_{0.50}; // top down    : 70 almost ignore    best : 60
   double x_cost_trigger_threshold_{0.10};
 
   int phase_step_{4};
 
-  double release_step_base_{0.03};   // CoP X Y 사용 step
+  double release_step_base_{0.03}; // CoP X Y 사용 step
   double grasp_step_base_{0.03};
-  double joint1_shift_step_{0.01};
+  double joint1_shift_step_{0.02}; // org : 0.01
 
   // regrasp 분리
   double regrasp_trigger_ratio_{0.7};
-  int regrasp_stable_count_{3};     // 몇 tick 연속 안정되면 종료
-  double regrasp_step_{0.02}; 
+  int regrasp_stable_count_{3}; // 몇 tick 연속 안정되면 종료
+  double regrasp_step_{0.02};
 
   // finger 마다 속도 다르게
   double min_step_scale_{0.3};
@@ -283,14 +282,14 @@ private:
 
   // little 0.2 regrasp
   bool TL_regrasp_mode_{false};
-  double thumb_contact_ratio_{2.0};          // thumb contact = other finger threshold 2x
-  double regrasp_force_ratio_{1.5};          // 재그립 완료 기준 = 평소 threshold의 1.5배
-  double little_regrasp_delta_{1.0};         // little joint1 누적 변화량 기준
-  double TL_grasp_step_{0.01}; 
+  double thumb_contact_ratio_{2.0};  // thumb contact = other finger threshold 2x
+  double regrasp_force_ratio_{1.5};  // 재그립 완료 기준 = 평소 threshold의 1.5배
+  double little_regrasp_delta_{1.0}; // little joint1 누적 변화량 기준
+  double TL_grasp_step_{0.01};
 
   // IK
-  double ik_y_shift_base_{0.003};     // 3 mm
+  double ik_y_shift_base_{0.003}; // 3 mm
   double ik_min_cost_scale_{0.3};
 };
 
-}  // namespace robotis_hand_tactile
+} // namespace robotis_hand_tactile

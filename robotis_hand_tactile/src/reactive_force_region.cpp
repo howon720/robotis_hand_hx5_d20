@@ -5,15 +5,14 @@
 #include <cmath>
 
 ReactiveForceNode::ReactiveForceNode()
-: Node("reactive_force"),
-  step_count_(0)
-{
+    : Node("reactive_force"),
+      step_count_(0) {
   force_topic_ = this->declare_parameter<std::string>(
-    "force_topic", "/tactile_force");
+      "force_topic", "/tactile_force");
   joint_state_topic_ = this->declare_parameter<std::string>(
-    "joint_state_topic", "/joint_states");
+      "joint_state_topic", "/joint_states");
   traj_topic_ = this->declare_parameter<std::string>(
-    "traj_topic", "/right_hand_controller/joint_trajectory");
+      "traj_topic", "/right_hand_controller/joint_trajectory");
 
   history_len_ = this->declare_parameter<int>("history_len", 3);
   startup_ignore_steps_ = this->declare_parameter<int>("startup_ignore_steps", 20);
@@ -29,58 +28,55 @@ ReactiveForceNode::ReactiveForceNode()
 
   post_grasp_ignore_steps_ = this->declare_parameter<int>("post_grasp_ignore_steps", 50);
 
-  finger_names_ = {"thumb", "index", "middle", "ring", "little"};
+  finger_names_ = { "thumb", "index", "middle", "ring", "little" };
 
   // 1:UP 2:DOWN 3:LEFT 4:RIGHT
   joint_release_step_["thumb"] = {
-    {"finger_r_joint3", -0.1},
-    {"finger_r_joint4", -0.1},
+    { "finger_r_joint3", -0.1 },
+    { "finger_r_joint4", -0.1 },
   };
   joint_release_step_["index"] = {
-    {"finger_r_joint6", -0.1},
-    {"finger_r_joint7", -0.1},
-    {"finger_r_joint8", -0.1},
+    { "finger_r_joint6", -0.1 },
+    { "finger_r_joint7", -0.1 },
+    { "finger_r_joint8", -0.1 },
   };
   joint_release_step_["middle"] = {
-    {"finger_r_joint10", -0.1},
-    {"finger_r_joint11", -0.1},
-    {"finger_r_joint12", -0.1},
+    { "finger_r_joint10", -0.1 },
+    { "finger_r_joint11", -0.1 },
+    { "finger_r_joint12", -0.1 },
   };
   joint_release_step_["ring"] = {
-    {"finger_r_joint14", -0.1},
-    {"finger_r_joint15", -0.1},
-    {"finger_r_joint16", -0.1},
+    { "finger_r_joint14", -0.1 },
+    { "finger_r_joint15", -0.1 },
+    { "finger_r_joint16", -0.1 },
   };
   joint_release_step_["little"] = {
-    {"finger_r_joint18", -0.1},
-    {"finger_r_joint19", -0.1},
-    {"finger_r_joint20", -0.1},
+    { "finger_r_joint18", -0.1 },
+    { "finger_r_joint19", -0.1 },
+    { "finger_r_joint20", -0.1 },
   };
 
-  joint_region34_step_["thumb"]  = {"finger_r_joint2",  0.1};
-  joint_region34_step_["index"]  = {"finger_r_joint5",  0.1};
-  joint_region34_step_["middle"] = {"finger_r_joint9",  0.1};
-  joint_region34_step_["ring"]   = {"finger_r_joint13", 0.1};
-  joint_region34_step_["little"] = {"finger_r_joint17", 0.1};
+  joint_region34_step_["thumb"] = { "finger_r_joint2", 0.1 };
+  joint_region34_step_["index"] = { "finger_r_joint5", 0.1 };
+  joint_region34_step_["middle"] = { "finger_r_joint9", 0.1 };
+  joint_region34_step_["ring"] = { "finger_r_joint13", 0.1 };
+  joint_region34_step_["little"] = { "finger_r_joint17", 0.1 };
 
-  for (const auto & finger : finger_names_) {
+  for (const auto& finger : finger_names_) {
     cooldown_counter_[finger] = 0;
   }
 
   force_sub_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
-    force_topic_, 10,
-    std::bind(&ReactiveForceNode::forceCallback, this, std::placeholders::_1));
+      force_topic_, 10, std::bind(&ReactiveForceNode::forceCallback, this, std::placeholders::_1));
 
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
-    joint_state_topic_, 50,
-    std::bind(&ReactiveForceNode::jointStateCallback, this, std::placeholders::_1));
+      joint_state_topic_, 50, std::bind(&ReactiveForceNode::jointStateCallback, this, std::placeholders::_1));
 
   traj_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-    traj_topic_, 10);
+      traj_topic_, 10);
 
   grasp_state_sub_ = this->create_subscription<std_msgs::msg::Int32>(
-    "/grasp_state", 10,
-    std::bind(&ReactiveForceNode::graspStateCallback, this, std::placeholders::_1));
+      "/grasp_state", 10, std::bind(&ReactiveForceNode::graspStateCallback, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "ReactiveForceNode started");
   RCLCPP_INFO(this->get_logger(), " force_topic      : %s", force_topic_.c_str());
@@ -88,15 +84,13 @@ ReactiveForceNode::ReactiveForceNode()
   RCLCPP_INFO(this->get_logger(), " traj_topic       : %s", traj_topic_.c_str());
 }
 
-void ReactiveForceNode::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
-{
+void ReactiveForceNode::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
   for (size_t i = 0; i < msg->name.size() && i < msg->position.size(); ++i) {
     current_joint_positions_[msg->name[i]] = msg->position[i];
   }
 }
 
-void ReactiveForceNode::graspStateCallback(const std_msgs::msg::Int32::SharedPtr msg)
-{
+void ReactiveForceNode::graspStateCallback(const std_msgs::msg::Int32::SharedPtr msg) {
   int prev_state = grasp_state_;
   grasp_state_ = msg->data;
 
@@ -104,13 +98,12 @@ void ReactiveForceNode::graspStateCallback(const std_msgs::msg::Int32::SharedPtr
     post_grasp_ignore_counter_ = post_grasp_ignore_steps_;
   }
 
-  for (auto & kv : force_history_) {
+  for (auto& kv : force_history_) {
     kv.second.clear();
   }
 }
 
-double ReactiveForceNode::mean(const std::deque<double> & data) const
-{
+double ReactiveForceNode::mean(const std::deque<double>& data) const {
   if (data.empty()) {
     return 0.0;
   }
@@ -119,8 +112,7 @@ double ReactiveForceNode::mean(const std::deque<double> & data) const
   return sum / static_cast<double>(data.size());
 }
 
-double ReactiveForceNode::variation(const std::deque<double> & data) const
-{
+double ReactiveForceNode::variation(const std::deque<double>& data) const {
   if (data.empty()) {
     return 0.0;
   }
@@ -129,8 +121,7 @@ double ReactiveForceNode::variation(const std::deque<double> & data) const
   return (*minmax.second - *minmax.first);
 }
 
-double ReactiveForceNode::slope(const std::deque<double> & data) const
-{
+double ReactiveForceNode::slope(const std::deque<double>& data) const {
   if (data.size() < 2) {
     return 0.0;
   }
@@ -138,8 +129,7 @@ double ReactiveForceNode::slope(const std::deque<double> & data) const
   return data.back() - data.front();
 }
 
-void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
-{
+void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
   if (grasp_state_ == 1 || grasp_state_ == 3) {
     return;
   }
@@ -154,9 +144,10 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
 
   if (msg->data.size() < expected_size) {
     RCLCPP_WARN(
-      this->get_logger(),
-      "Force array too small. expected=%zu, got=%zu",
-      expected_size, msg->data.size());
+        this->get_logger(),
+        "Force array too small. expected=%zu, got=%zu",
+        expected_size,
+        msg->data.size());
     return;
   }
 
@@ -165,7 +156,7 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
   std::vector<std::pair<std::string, int>> release_fingers;
 
   for (size_t i = 0; i < finger_names_.size(); ++i) {
-    const auto & finger = finger_names_[i];
+    const auto& finger = finger_names_[i];
     const size_t base = i * values_per_finger;
 
     const int region = static_cast<int>(msg->data[base + 0]);
@@ -174,7 +165,7 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
 
     (void)angle_deg;
 
-    auto & hist = force_history_[finger];
+    auto& hist = force_history_[finger];
     hist.push_back(force);
     if (static_cast<int>(hist.size()) > history_len_) {
       hist.pop_front();
@@ -206,18 +197,24 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
     const double sl = slope(hist);
 
     const bool trigger =
-      (force > min_contact_force_) &&
-      (d > delta_threshold_) &&
-      (var > variation_threshold_);
+        (force > min_contact_force_) &&
+        (d > delta_threshold_) &&
+        (var > variation_threshold_);
 
     if (trigger) {
-      release_fingers.push_back({finger, region});
+      release_fingers.push_back({ finger, region });
       cooldown_counter_[finger] = cooldown_steps_default_;
 
       RCLCPP_INFO(
-        this->get_logger(),
-        "[RELEASE] %s region=%d force=%.2f avg=%.2f delta=%.2f var=%.2f slope=%.2f",
-        finger.c_str(), region, force, avg, d, var, sl);
+          this->get_logger(),
+          "[RELEASE] %s region=%d force=%.2f avg=%.2f delta=%.2f var=%.2f slope=%.2f",
+          finger.c_str(),
+          region,
+          force,
+          avg,
+          d,
+          var,
+          sl);
     }
   }
 
@@ -227,16 +224,15 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
 }
 
 void ReactiveForceNode::publishReleaseTrajectory(
-  const std::vector<std::pair<std::string, int>> & release_fingers)
-{
+    const std::vector<std::pair<std::string, int>>& release_fingers) {
   trajectory_msgs::msg::JointTrajectory traj;
   traj.header.stamp = this->now();
 
   trajectory_msgs::msg::JointTrajectoryPoint point;
   point.time_from_start = rclcpp::Duration::from_seconds(traj_time_);
 
-  for (const auto & item : release_fingers) {
-    const std::string & finger = item.first;
+  for (const auto& item : release_fingers) {
+    const std::string& finger = item.first;
     const int region = item.second;
 
     // region 1,2: 기존 3개 joint 사용
@@ -248,16 +244,16 @@ void ReactiveForceNode::publishReleaseTrajectory(
 
       const double direction_scale = (region == 1) ? 1.0 : -1.0;
 
-      for (const auto & joint_pair : finger_it->second) {
-        const std::string & joint_name = joint_pair.first;
+      for (const auto& joint_pair : finger_it->second) {
+        const std::string& joint_name = joint_pair.first;
         const double step = joint_pair.second * direction_scale;
 
         auto joint_it = current_joint_positions_.find(joint_name);
         if (joint_it == current_joint_positions_.end()) {
           RCLCPP_WARN(
-            this->get_logger(),
-            "Current joint position not found for %s",
-            joint_name.c_str());
+              this->get_logger(),
+              "Current joint position not found for %s",
+              joint_name.c_str());
           continue;
         }
 
@@ -276,7 +272,7 @@ void ReactiveForceNode::publishReleaseTrajectory(
         continue;
       }
 
-      const std::string & joint_name = finger_it->second.first;
+      const std::string& joint_name = finger_it->second.first;
       const double base_step = finger_it->second.second;
       const double direction_scale = (region == 3) ? 1.0 : -1.0;
       const double step = base_step * direction_scale;
@@ -284,9 +280,9 @@ void ReactiveForceNode::publishReleaseTrajectory(
       auto joint_it = current_joint_positions_.find(joint_name);
       if (joint_it == current_joint_positions_.end()) {
         RCLCPP_WARN(
-          this->get_logger(),
-          "Current joint position not found for %s",
-          joint_name.c_str());
+            this->get_logger(),
+            "Current joint position not found for %s",
+            joint_name.c_str());
         continue;
       }
 
@@ -309,8 +305,7 @@ void ReactiveForceNode::publishReleaseTrajectory(
   traj_pub_->publish(traj);
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<ReactiveForceNode>();
   rclcpp::spin(node);

@@ -15,27 +15,23 @@
 #include "std_msgs/msg/float32_multi_array.hpp"
 #include "std_msgs/msg/int32.hpp"
 
-namespace robotis_hand_tactile_hold
-{
+namespace robotis_hand_tactile_hold {
 
-class TactileGraspController : public rclcpp::Node
-{
+class TactileGraspController : public rclcpp::Node {
 public:
   TactileGraspController();
 
 private:
   static constexpr int k_num_fingers = 5;
 
-  enum class State
-  {
+  enum class State {
     IDLE,
     CLOSE,
     HOLD,
     OPEN
   };
 
-  struct FingerConfig
-  {
+  struct FingerConfig {
     std::string name;
 
     std::vector<std::string> joint_names;
@@ -54,7 +50,7 @@ private:
 
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr tactile_sub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr grasp_state_sub_;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr grasp_state_sub_; // 동작 시작 트리거 : 나중에 수정 필요
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
 
@@ -74,21 +70,21 @@ private:
 
   double control_rate_hz_{20.0};
   double alpha_{0.2};
-  double contact_threshold_{5.0};  // contact 임계값 : 사용 X 시 무한대      // airpak : 20     papercup : 2.0    chocopie : 5.0
-  double force_target_scale_{1.2};  // HOLD 할 때의 목표값  : contact 기준 1.2 sclae
+  double contact_threshold_{3.0};  // contact 임계값 : 사용 X 시 무한대      // airpak : 20     papercup : 2.0    chocopie : 5.0
+  double force_target_scale_{1.2}; // HOLD 할 때의 목표값  : contact 기준 1.2 sclae
   double kf_{0.002};
-  double deadband_low_{-0.03};   // 오차 : 손떨림 보정
+  double deadband_low_{-0.03}; // 오차 : 손떨림 보정
   double deadband_high_{0.03};
-  double close_step_{0.03};  //0.01                    // airpak : 0.04     papercup : 0.03
+  double close_step_{0.03}; // 0.01                    // airpak : 0.04     papercup : 0.03
   double open_step_{0.015};
   double max_delta_per_step_{0.01};
-  
+
   bool use_baseline_{false};
   int baseline_sample_count_{30};
   int baseline_collected_count_{0};
   bool baseline_ready_{false};
 
-  double thumb_contact_ratio_{2.5};    // for snack 부스러지면 2.0
+  double thumb_contact_ratio_{2.5}; // for snack 부스러지면 2.0
 
   double trajectory_dt_{0.1};
 
@@ -113,16 +109,16 @@ private:
   void sync_targets_from_joint_state();
 
   bool all_fingers_contacted() const;
-  bool get_mapped_joint_target(const std::string & joint_name, double & target) const;
-  double get_open_reference_position(const std::string & joint_name) const;
+  bool get_mapped_joint_target(const std::string& joint_name, double& target) const;
+  double get_open_reference_position(const std::string& joint_name) const;
 
   double apply_deadband(double error) const;
   double clamp(double value, double min_v, double max_v) const;
-  double get_joint_position(const std::string & joint_name) const;
+  double get_joint_position(const std::string& joint_name) const;
 
-  double finger_contact_threshold(int finger_idx) const;  // for thumb
+  double finger_contact_threshold(int finger_idx) const; // for thumb
 
   std::string state_to_string(State s) const;
 };
 
-}  // namespace robotis_hand_tactile
+} // namespace robotis_hand_tactile_hold
