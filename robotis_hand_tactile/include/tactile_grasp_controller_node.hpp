@@ -47,6 +47,7 @@ private:
   rclcpp::Subscription<Int32Msg>::SharedPtr grasp_state_sub_;
   rclcpp::Publisher<JointTrajectoryMsg>::SharedPtr traj_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
+  rclcpp::TimerBase::SharedPtr unused_finger_timer_;
 
   TactileSensorProcessor tactile_sensor_processor_;
 

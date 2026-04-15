@@ -6,15 +6,12 @@
 #include "pluginlib/class_list_macros.hpp"
 #include "rclcpp/logging.hpp"
 
-namespace robotis_hand_pressure_broadcaster
-{
+namespace robotis_hand_pressure_broadcaster {
 
-namespace
-{
+namespace {
 
-std::string infer_hand_name(const std::vector<std::string> & sensor_names)
-{
-  for (const auto & sensor_name : sensor_names) {
+std::string infer_hand_name(const std::vector<std::string>& sensor_names) {
+  for (const auto& sensor_name : sensor_names) {
     if (sensor_name.find("finger_l_") != std::string::npos) {
       return "left";
     }
@@ -27,24 +24,20 @@ std::string infer_hand_name(const std::vector<std::string> & sensor_names)
   return "";
 }
 
-}  // namespace
+} // namespace
 
-controller_interface::InterfaceConfiguration
-PressureBroadcaster::command_interface_configuration() const
-{
+controller_interface::InterfaceConfiguration PressureBroadcaster::command_interface_configuration() const {
   return {controller_interface::interface_configuration_type::NONE, {}};
 }
 
-controller_interface::InterfaceConfiguration
-PressureBroadcaster::state_interface_configuration() const
-{
-  const_cast<PressureBroadcaster *>(this)->refresh_parameters();
+controller_interface::InterfaceConfiguration PressureBroadcaster::state_interface_configuration() const {
+  const_cast<PressureBroadcaster*>(this)->refresh_parameters();
 
   std::vector<std::string> requested_interfaces;
   requested_interfaces.reserve(sensor_names_.size() * interface_names_.size());
 
-  for (const auto & sensor_name : sensor_names_) {
-    for (const auto & interface_name : interface_names_) {
+  for (const auto& sensor_name : sensor_names_) {
+    for (const auto& interface_name : interface_names_) {
       requested_interfaces.emplace_back(sensor_name + "/" + interface_name);
     }
   }
@@ -52,15 +45,14 @@ PressureBroadcaster::state_interface_configuration() const
   return {controller_interface::interface_configuration_type::INDIVIDUAL, requested_interfaces};
 }
 
-PressureBroadcaster::CallbackReturn PressureBroadcaster::on_init()
-{
+PressureBroadcaster::CallbackReturn PressureBroadcaster::on_init() {
   try {
     auto_declare<std::vector<std::string>>("sensor_names", {});
     auto_declare<std::vector<std::string>>("interface_names", {});
     auto_declare<std::string>("hand_name", "");
     auto_declare<std::string>("frame_id", "");
     auto_declare<std::string>("topic_name", "~/pressures");
-  } catch (const std::exception & exception) {
+  } catch (const std::exception& exception) {
     RCLCPP_ERROR(get_node()->get_logger(), "Failed to declare parameters: %s", exception.what());
     return CallbackReturn::ERROR;
   }
@@ -68,9 +60,8 @@ PressureBroadcaster::CallbackReturn PressureBroadcaster::on_init()
   return CallbackReturn::SUCCESS;
 }
 
-PressureBroadcaster::CallbackReturn PressureBroadcaster::on_configure(
-  const rclcpp_lifecycle::State & /*previous_state*/)
-{
+PressureBroadcaster::CallbackReturn
+PressureBroadcaster::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
   if (!refresh_parameters() || sensor_names_.empty()) {
     RCLCPP_ERROR(get_node()->get_logger(), "'sensor_names' parameter must not be empty");
     return CallbackReturn::ERROR;
@@ -82,17 +73,15 @@ PressureBroadcaster::CallbackReturn PressureBroadcaster::on_configure(
   }
 
   auto publisher = get_node()->create_publisher<robotis_interfaces::msg::HandPressures>(topic_name_, 10);
-  publisher_ =
-    std::make_shared<realtime_tools::RealtimePublisher<robotis_interfaces::msg::HandPressures>>(publisher);
+  publisher_ = std::make_shared<realtime_tools::RealtimePublisher<robotis_interfaces::msg::HandPressures>>(publisher);
 
   configure_message();
 
   return CallbackReturn::SUCCESS;
 }
 
-PressureBroadcaster::CallbackReturn PressureBroadcaster::on_activate(
-  const rclcpp_lifecycle::State & /*previous_state*/)
-{
+PressureBroadcaster::CallbackReturn
+PressureBroadcaster::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
   if (!publisher_) {
     RCLCPP_ERROR(get_node()->get_logger(), "Publisher is not configured");
     return CallbackReturn::ERROR;
@@ -101,21 +90,18 @@ PressureBroadcaster::CallbackReturn PressureBroadcaster::on_activate(
   return CallbackReturn::SUCCESS;
 }
 
-PressureBroadcaster::CallbackReturn PressureBroadcaster::on_deactivate(
-  const rclcpp_lifecycle::State & /*previous_state*/)
-{
+PressureBroadcaster::CallbackReturn
+PressureBroadcaster::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/) {
   return CallbackReturn::SUCCESS;
 }
 
-controller_interface::return_type PressureBroadcaster::update(
-  const rclcpp::Time & time,
-  const rclcpp::Duration & /*period*/)
-{
+controller_interface::return_type PressureBroadcaster::update(const rclcpp::Time& time,
+                                                              const rclcpp::Duration& /*period*/) {
   if (!publisher_ || !publisher_->trylock()) {
     return controller_interface::return_type::OK;
   }
 
-  auto & message = publisher_->msg_;
+  auto& message = publisher_->msg_;
 
   for (size_t i = 0; i < sensor_names_.size(); ++i) {
     const size_t base = i * interface_names_.size();
@@ -124,11 +110,10 @@ controller_interface::return_type PressureBroadcaster::update(
       if (base + offset >= state_interfaces_.size()) {
         return 0.0f;
       }
-      return static_cast<float>(
-        state_interfaces_[base + offset].get_optional().value_or(0.0));
+      return static_cast<float>(state_interfaces_[base + offset].get_optional().value_or(0.0));
     };
 
-    auto & sensor = message.sensors[i];
+    auto& sensor = message.sensors[i];
     for (size_t j = 0; j < sensor.pressure_values.size(); ++j) {
       sensor.pressure_values[j] = get_val(j);
     }
@@ -142,9 +127,8 @@ controller_interface::return_type PressureBroadcaster::update(
   return controller_interface::return_type::OK;
 }
 
-void PressureBroadcaster::configure_message()
-{
-  auto & message = publisher_->msg_;
+void PressureBroadcaster::configure_message() {
+  auto& message = publisher_->msg_;
   message.header.frame_id = frame_id_;
   message.hand_name = hand_name_;
 
@@ -152,7 +136,7 @@ void PressureBroadcaster::configure_message()
   message.sensors.resize(sensor_names_.size());
 
   for (size_t i = 0; i < sensor_names_.size(); ++i) {
-    auto & sensor = message.sensors[i];
+    auto& sensor = message.sensors[i];
     sensor.sensor_name = sensor_names_[i];
 
     for (size_t j = 0; j < interface_names_.size(); ++j) {
@@ -162,14 +146,10 @@ void PressureBroadcaster::configure_message()
   }
 }
 
-bool PressureBroadcaster::refresh_parameters()
-{
-  if (!get_node()->has_parameter("sensor_names") ||
-    !get_node()->has_parameter("interface_names") ||
-    !get_node()->has_parameter("hand_name") ||
-    !get_node()->has_parameter("frame_id") ||
-    !get_node()->has_parameter("topic_name"))
-  {
+bool PressureBroadcaster::refresh_parameters() {
+  if (!get_node()->has_parameter("sensor_names") || !get_node()->has_parameter("interface_names") ||
+      !get_node()->has_parameter("hand_name") || !get_node()->has_parameter("frame_id") ||
+      !get_node()->has_parameter("topic_name")) {
     return false;
   }
 
@@ -186,8 +166,7 @@ bool PressureBroadcaster::refresh_parameters()
   return true;
 }
 
-}  // namespace robotis_hand_pressure_broadcaster
+} // namespace robotis_hand_pressure_broadcaster
 
-PLUGINLIB_EXPORT_CLASS(
-  robotis_hand_pressure_broadcaster::PressureBroadcaster,
-  controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(robotis_hand_pressure_broadcaster::PressureBroadcaster,
+                       controller_interface::ControllerInterface)

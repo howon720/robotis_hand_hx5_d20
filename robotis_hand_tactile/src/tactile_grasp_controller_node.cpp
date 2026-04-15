@@ -26,6 +26,12 @@ TactileGraspControllerNode::TactileGraspControllerNode()
   control_timer_ = this->create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
                                            std::bind(&TactileGraspControllerNode::control_loop, this));
 
+  unused_finger_timer_ = this->create_wall_timer(std::chrono::milliseconds(50), [this]() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    close_unused_finger();
+    publish_traj();
+  });
+
   RCLCPP_INFO(this->get_logger(), "TactileGraspController initialized.");
 }
 

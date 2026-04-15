@@ -34,6 +34,25 @@ void TactileGraspController::handle_idle() {
   // IDLE
 }
 
+bool TactileGraspController::unused_finger(int finger_idx) const {
+  return std::find(not_use_fingers_.begin(), not_use_fingers_.end(), finger_idx) != not_use_fingers_.end();
+}
+
+void TactileGraspController::close_unused_finger() {
+  for (int i = 1; i < fingers_num; ++i) {
+    if (!unused_finger(i)) {
+      continue;
+    }
+    auto& finger = fingers_[i];
+
+    for (int j = 1; j <= 3; ++j) {
+      finger.current_joint_targets[j] += close_step_;
+      finger.current_joint_targets[j] =
+          clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+    }
+  }
+}
+
 double TactileGraspController::finger_contact_threshold(int finger_idx) const {
   if (finger_idx == 0) {
     return contact_threshold_ * thumb_contact_ratio_;
@@ -44,6 +63,12 @@ double TactileGraspController::finger_contact_threshold(int finger_idx) const {
 void TactileGraspController::handle_close() {
   for (int i = 0; i < fingers_num; ++i) {
     auto& finger = fingers_[i];
+
+    if (unused_finger(i)) {
+      finger.contact_detected = true;
+      desired_force_[i] = 0.0;
+      continue;
+    }
 
     if (!finger.contact_detected) {
       // thumb

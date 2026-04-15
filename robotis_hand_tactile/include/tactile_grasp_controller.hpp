@@ -150,6 +150,10 @@ public:
 
   bool all_finger_contacted() const;
 
+  // not use finger
+  bool unused_finger(int finger_idx) const;
+  void close_unused_finger();
+
 protected:
   virtual void publish_traj() = 0;
   virtual std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const = 0;
@@ -197,9 +201,12 @@ protected:
   double min_step_scale_{0.3};
   double max_step_scale_{1.0};
 
-  // special ratios
+  // specific
   double thumb_contact_ratio_{2.0}; // thumb contact = other finger threshold 2x
   double regrasp_force_ratio_{1.5}; // 재그립 완료 기준 = 평소 threshold의 1.5배
+
+  // thumb: 0, index: 1, middle: 2, ring: 3, little: 4
+  std::vector<int> not_use_fingers_{3, 4};
 };
 
 } // namespace robotis_hand_tactile

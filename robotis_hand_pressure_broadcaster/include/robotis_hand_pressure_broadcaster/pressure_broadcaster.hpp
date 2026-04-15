@@ -10,14 +10,11 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "realtime_tools/realtime_publisher.hpp"
 
-namespace robotis_hand_pressure_broadcaster
-{
+namespace robotis_hand_pressure_broadcaster {
 
-class PressureBroadcaster : public controller_interface::ControllerInterface
-{
+class PressureBroadcaster : public controller_interface::ControllerInterface {
 public:
-  using CallbackReturn =
-    rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+  using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
   PressureBroadcaster() = default;
 
@@ -25,13 +22,11 @@ public:
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
 
   CallbackReturn on_init() override;
-  CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) override;
-  CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) override;
-  CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) override;
+  CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+  CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
 
-  controller_interface::return_type update(
-    const rclcpp::Time & time,
-    const rclcpp::Duration & period) override;
+  controller_interface::return_type update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
 private:
   bool refresh_parameters();
@@ -43,10 +38,9 @@ private:
   std::string frame_id_;
   std::string topic_name_;
 
-  std::shared_ptr<realtime_tools::RealtimePublisher<robotis_interfaces::msg::HandPressures>>
-    publisher_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<robotis_interfaces::msg::HandPressures>> publisher_;
 };
 
-}  // namespace robotis_hand_pressure_broadcaster
+} // namespace robotis_hand_pressure_broadcaster
 
-#endif  // ROBOTIS_HAND_PRESSURE_BROADCASTER__PRESSURE_BROADCASTER_HPP_
+#endif // ROBOTIS_HAND_PRESSURE_BROADCASTER__PRESSURE_BROADCASTER_HPP_
