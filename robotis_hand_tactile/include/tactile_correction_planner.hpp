@@ -1,17 +1,13 @@
 #pragma once
 
 #include "tactile_grasp_controller.hpp"
+#include "hx5d20_struct.h"
 
 namespace robotis_hand_tactile {
 
-typedef TactileGraspController Controller;
-typedef TactileGraspController::CorrectionPlan CorrectionPlan;
-typedef TactileGraspController::CorrectionType CorrectionType;
-typedef TactileGraspController::HoldCorrectionStage HoldCorrectionStage;
-
 class TactileCorrectionPlanner {
 public:
-  explicit TactileCorrectionPlanner(Controller& controller);
+  explicit TactileCorrectionPlanner(TactileGraspController& controller);
 
   void start_correction(int finger_idx);
   void apply_correction(int finger_idx);
@@ -24,7 +20,7 @@ public:
   std::string correction_str(CorrectionType t) const;
 
 private:
-  Controller& controller_;
+  TactileGraspController& controller_;
 };
 
 } // namespace robotis_hand_tactile

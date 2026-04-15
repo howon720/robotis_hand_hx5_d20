@@ -2,7 +2,7 @@
 
 namespace robotis_hand_tactile {
 
-TactileCorrectionPlanner::TactileCorrectionPlanner(Controller& controller) : controller_(controller) {
+TactileCorrectionPlanner::TactileCorrectionPlanner(TactileGraspController& controller) : controller_(controller) {
 }
 
 void TactileCorrectionPlanner::start_correction(int finger_idx) {
@@ -205,7 +205,7 @@ bool TactileCorrectionPlanner::is_x_correction(CorrectionType type) const {
 }
 
 bool TactileCorrectionPlanner::correction_blocked(HoldCorrectionStage stage) const {
-  for (int i = 0; i < Controller::fingers_num; ++i) {
+  for (int i = 0; i < fingers_num; ++i) {
     const auto maybe_decision = controller_.pick_correction(controller_.fingers_[i].cop);
     if (!maybe_decision.has_value()) {
       continue;

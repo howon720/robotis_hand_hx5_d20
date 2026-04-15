@@ -192,7 +192,7 @@
          <child link="${prefix}finger_r_link5" />
          <origin xyz="-0.0015 0.03608 0.10275" rpy="0 0 0" />
          <axis xyz="1 0 0" />
-         <limit velocity="4.8" effort="1000" lower="-0.6" upper="0.6" />  
+         <limit velocity="4.8" effort="1000" lower="-1.5" upper="0.6" />  
          <dynamics damping="0.05" />
       </joint>
       <link name="${prefix}finger_r_link5">
@@ -663,7 +663,7 @@
          <child link="${prefix}finger_r_link17" />
          <origin xyz="-0.0015 -0.04492 0.08575" rpy="0 0 0" />
          <axis xyz="1 0 0" />
-         <limit velocity="4.8" effort="1000" lower="-0.6" upper="0.6" />
+         <limit velocity="4.8" effort="1000" lower="-0.6" upper="1.5" />
          <dynamics damping="0.05" />
       </joint>
       <link name="${prefix}finger_r_link17">

@@ -1,28 +1,41 @@
 #pragma once
 
-#include <array>
-#include <string>
-#include <vector>
-#include <memory>
-#include <unordered_map>
-#include <algorithm>
-#include <cmath>
-
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "std_msgs/msg/int32.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
-#include "std_msgs/msg/float32_multi_array.hpp"
-#include "std_msgs/msg/int32.hpp"
+#include "robotis_interfaces/msg/hand_pressures.hpp"
+
+#include "hx5d20_struct.h"
+#include "tactile_sensor_processor.hpp"
+
+#include <array>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace robotis_hand_tactile_hold {
 
 class TactileGraspController : public rclcpp::Node {
 public:
-  TactileGraspController();
+  static constexpr int fingers_num = robotis_hand_tactile::fingers_num;
 
-private:
-  static constexpr int k_num_fingers = 5;
+  typedef robotis_interfaces::msg::HandPressures HandPressuresMsg;
+  typedef robotis_interfaces::msg::HandPressures::SharedPtr HandPressuresPtr;
+
+  typedef sensor_msgs::msg::JointState JointStateMsg;
+  typedef sensor_msgs::msg::JointState::SharedPtr JointStatePtr;
+
+  typedef std_msgs::msg::Int32 Int32Msg;
+  typedef std_msgs::msg::Int32::SharedPtr Int32Ptr;
+
+  typedef trajectory_msgs::msg::JointTrajectory JointTrajectoryMsg;
+  typedef trajectory_msgs::msg::JointTrajectoryPoint JointTrajectoryPointMsg;
+
+  typedef robotis_hand_tactile::FingerData FingerDataMsg;
+  typedef robotis_hand_tactile::FingerArray FingerArrayMsg;
 
   enum class State {
     IDLE,
@@ -30,71 +43,16 @@ private:
     HOLD
   };
 
-  struct FingerConfig {
-    std::string name;
+  TactileGraspController();
 
-    std::vector<std::string> joint_names;
-    std::vector<double> weights;
-    std::vector<double> current_joint_targets;
-
-    std::vector<double> joint_min;
-    std::vector<double> joint_max;
-
-    double raw_force{0.0};
-    double filtered_force{0.0};
-    double baseline_force{0.0};
-
-    bool contact_detected{false};
-  };
-
-  rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr tactile_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr grasp_state_sub_; // 동작 시작 트리거 : 나중에 수정 필요
-  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub_;
-  rclcpp::TimerBase::SharedPtr control_timer_;
-
-  State state_{State::IDLE};
-
-  std::array<FingerConfig, k_num_fingers> fingers_;
-
-  std::vector<std::string> all_control_joint_names_;
-  std::vector<std::string> all_hand_joint_names_;
-  std::vector<double> open_reference_positions_;
-  std::unordered_map<std::string, double> joint_position_map_;
-  bool joint_state_received_{false};
-
-  std::array<double, k_num_fingers> desired_force_{};
-  std::array<double, k_num_fingers> contact_force_{};
-  std::array<double, k_num_fingers> prev_filtered_force_{};
-
-  double control_rate_hz_{20.0};
-  double alpha_{0.2};
-  double contact_threshold_{3.0};  // contact 임계값 : 사용 X 시 무한대      // airpak : 20     papercup : 2.0    chocopie : 5.0
-  double force_target_scale_{1.2}; // HOLD 할 때의 목표값  : contact 기준 1.2 sclae
-  double kf_{0.002};
-  double deadband_low_{-0.03}; // 오차 : 손떨림 보정
-  double deadband_high_{0.03};
-  double close_step_{0.03}; // 0.01                    // airpak : 0.04     papercup : 0.03
-  double open_step_{0.015};
-  double max_delta_per_step_{0.01};
-
-  bool use_baseline_{false};
-  int baseline_sample_count_{30};
-  int baseline_collected_count_{0};
-  bool baseline_ready_{false};
-
-  double thumb_contact_ratio_{2.5}; // for snack 부스러지면 2.0
-
-  double trajectory_dt_{0.1};
-
-  void declare_parameters();
-  void load_parameters();
+private:
   void init_finger_configs();
   void init_joint_name_list();
 
-  void tactile_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
-  void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
-  void grasp_state_callback(const std_msgs::msg::Int32::SharedPtr msg);
+  void pressure_callback(const HandPressuresPtr msg);
+  void joint_state_callback(const JointStatePtr msg);
+  void grasp_state_callback(const Int32Ptr msg);
+
   void control_loop();
 
   void handle_idle();
@@ -108,15 +66,53 @@ private:
 
   bool all_fingers_contacted() const;
   bool get_mapped_joint_target(const std::string& joint_name, double& target) const;
-  double get_open_reference_position(const std::string& joint_name) const;
 
+  double get_open_reference_position(const std::string& joint_name) const;
   double apply_deadband(double error) const;
   double clamp(double value, double min_v, double max_v) const;
   double get_joint_position(const std::string& joint_name) const;
-
-  double finger_contact_threshold(int finger_idx) const; // for thumb
+  double finger_contact_threshold(int finger_idx) const;
 
   std::string state_to_string(State s) const;
+
+private:
+  rclcpp::Subscription<HandPressuresMsg>::SharedPtr pressure_sub_;
+  rclcpp::Subscription<JointStateMsg>::SharedPtr joint_state_sub_;
+  rclcpp::Subscription<Int32Msg>::SharedPtr grasp_state_sub_;
+  rclcpp::Publisher<JointTrajectoryMsg>::SharedPtr traj_pub_;
+  rclcpp::TimerBase::SharedPtr control_timer_;
+
+  robotis_hand_tactile::TactileSensorProcessor tactile_sensor_processor_;
+
+  FingerArrayMsg fingers_{};
+
+  std::array<double, fingers_num> contact_force_{};
+  std::array<double, fingers_num> desired_force_{};
+  std::array<double, fingers_num> prev_filtered_force_{};
+
+  std::vector<std::string> all_hand_joint_names_;
+  std::vector<double> open_reference_positions_;
+
+  std::map<std::string, double> joint_position_map_;
+
+  State state_{State::IDLE};
+
+  bool joint_state_received_{false};
+  bool baseline_{false};
+
+  double control_rate_hz_{20.0};
+  double trajectory_dt_{0.05};
+
+  double close_step_{0.01};
+  double contact_threshold_{30.0};
+  double thumb_contact_ratio_{2.0};
+
+  double force_target_scale_{1.0};
+
+  double deadband_low_{-5.0};
+  double deadband_high_{5.0};
+  double kf_{0.002};
+  double max_delta_per_step_{0.01};
 };
 
 } // namespace robotis_hand_tactile_hold

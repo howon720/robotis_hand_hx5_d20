@@ -189,7 +189,10 @@ void TactileGraspController::handle_hold() {
     }
 
     regulate_grasp_force(i);
-    correction_planner_->start_correction(i);
+
+    if (!x_ik_failed_[i]) {
+      correction_planner_->start_correction(i);
+    }
   }
 
   publish_traj();
@@ -287,6 +290,10 @@ void TactileGraspController::reset_grasp() {
     finger.contact_detected = false;
   }
 
+  for (auto& failed : x_ik_failed_) {
+    failed = false;
+  }
+
   for (auto& plan : correction_plans_) {
     plan = CorrectionPlan{};
   }
@@ -318,7 +325,7 @@ bool TactileGraspController::all_contacted() const {
 
 bool TactileGraspController::all_finger_contacted() const {
   for (int i = 0; i < fingers_num; ++i) {
-    if (fingers_[i].filtered_force < 1.5 * finger_contact_threshold(i)) {
+    if (fingers_[i].filtered_force < regrasp_force_ratio_ * finger_contact_threshold(i)) {
       return false;
     }
   }
@@ -355,6 +362,7 @@ bool TactileGraspController::correction_ik(int finger_idx, bool forward_y) {
 
   const auto maybe_q = finger_planar_ik_->solve_shift_yz(solver_idx, current_q, delta_y, delta_z);
   if (!maybe_q.has_value()) {
+    x_ik_failed_[finger_idx] = true;
     RCLCPP_WARN(this->get_logger(), "[%s] planar IK failed", fingers_[finger_idx].name.c_str());
     return false;
   }

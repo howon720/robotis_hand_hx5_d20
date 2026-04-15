@@ -23,9 +23,6 @@ typedef std_msgs::msg::Int32::SharedPtr Int32Ptr;
 typedef trajectory_msgs::msg::JointTrajectory JointTrajectoryMsg;
 typedef trajectory_msgs::msg::JointTrajectoryPoint JointTrajectoryPointMsg;
 
-typedef TactileGraspController::CorrectionDecision CorrectionDecision;
-typedef TactileGraspController::CopInfo CopInfo;
-
 class TactileGraspControllerNode : public TactileGraspController {
 public:
   TactileGraspControllerNode();

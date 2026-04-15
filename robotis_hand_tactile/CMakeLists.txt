@@ -65,7 +65,8 @@ install(TARGETS tactile_grasp_controller_node
         DESTINATION lib/${PROJECT_NAME})
 
 add_executable(tactile_grasp_controller_hold 
-              src/tactile_grasp_controller_hold.cpp)
+              src/tactile_grasp_controller_hold.cpp
+              src/tactile_sensor_processor.cpp)
 target_include_directories(tactile_grasp_controller_hold PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

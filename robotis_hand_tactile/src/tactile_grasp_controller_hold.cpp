@@ -7,21 +7,24 @@ using namespace std::chrono_literals;
 
 namespace robotis_hand_tactile_hold {
 
-TactileGraspController::TactileGraspController() : Node("tactile_grasp_controller") {
+TactileGraspController::TactileGraspController()
+    : Node("tactile_grasp_controller"), tactile_sensor_processor_(this->get_logger(), this->get_clock()) {
   init_finger_configs();
   init_joint_name_list();
 
-  tactile_sub_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
-      "tactile_force", 10, std::bind(&TactileGraspController::tactile_callback, this, std::placeholders::_1));
+  pressure_sub_ = this->create_subscription<robotis_interfaces::msg::HandPressures>(
+      "/right_hand/finger_pressures",
+      10,
+      std::bind(&TactileGraspController::pressure_callback, this, std::placeholders::_1));
 
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
-      "joint_states", 10, std::bind(&TactileGraspController::joint_state_callback, this, std::placeholders::_1));
+      "/joint_states", 10, std::bind(&TactileGraspController::joint_state_callback, this, std::placeholders::_1));
 
   grasp_state_sub_ = this->create_subscription<std_msgs::msg::Int32>(
       "/grasp_state", 10, std::bind(&TactileGraspController::grasp_state_callback, this, std::placeholders::_1));
 
   traj_pub_ =
-      this->create_publisher<trajectory_msgs::msg::JointTrajectory>("right_hand_controller/joint_trajectory", 10);
+      this->create_publisher<trajectory_msgs::msg::JointTrajectory>("/right_hand_controller/joint_trajectory", 10);
 
   const auto period = std::chrono::duration<double>(1.0 / control_rate_hz_);
   control_timer_ = this->create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
@@ -31,108 +34,65 @@ TactileGraspController::TactileGraspController() : Node("tactile_grasp_controlle
 }
 
 void TactileGraspController::init_finger_configs() {
-  // thumb: joint3, joint4
+  // thumb
   fingers_[0].name = "thumb";
-  fingers_[0].joint_names = {"finger_r_joint3", "finger_r_joint4"};
-  fingers_[0].weights = {0.5, 0.5};
-  fingers_[0].current_joint_targets = {0.0, 0.0};
-  fingers_[0].joint_min = {-1.5, -1.5};
-  fingers_[0].joint_max = {1.5, 1.5};
+  fingers_[0].joint_names = {"finger_r_joint1", "finger_r_joint2", "finger_r_joint3", "finger_r_joint4"};
+  fingers_[0].joint_min = {-1.5, -3.5, -1.5, -1.5};
+  fingers_[0].joint_max = {1.5, 0.5, 1.5, 1.5};
+  fingers_[0].current_joint_targets = {0.0, 0.0, 0.0, 0.0};
 
-  // index: joint6,7,8
+  // index
   fingers_[1].name = "index";
-  fingers_[1].joint_names = {"finger_r_joint6", "finger_r_joint7", "finger_r_joint8"};
-  fingers_[1].weights = {0.5, 0.3, 0.2};
-  fingers_[1].current_joint_targets = {0.0, 0.0, 0.0};
-  fingers_[1].joint_min = {-1.5, -1.5, -1.5};
-  fingers_[1].joint_max = {1.5, 1.5, 1.5};
+  fingers_[1].joint_names = {"finger_r_joint5", "finger_r_joint6", "finger_r_joint7", "finger_r_joint8"};
+  fingers_[1].joint_min = {-1.5, -1.5, -1.5, -1.5};
+  fingers_[1].joint_max = {0.6, 1.5, 1.5, 1.5};
+  fingers_[1].current_joint_targets = {0.0, 0.0, 0.0, 0.0};
 
-  // middle: joint10,11,12
+  // middle
   fingers_[2].name = "middle";
-  fingers_[2].joint_names = {"finger_r_joint10", "finger_r_joint11", "finger_r_joint12"};
-  fingers_[2].weights = {0.5, 0.3, 0.2};
-  fingers_[2].current_joint_targets = {0.0, 0.0, 0.0};
-  fingers_[2].joint_min = {-1.5, -1.5, -1.5};
-  fingers_[2].joint_max = {1.5, 1.5, 1.5};
+  fingers_[2].joint_names = {"finger_r_joint9", "finger_r_joint10", "finger_r_joint11", "finger_r_joint12"};
+  fingers_[2].joint_min = {-0.6, -1.5, -1.5, -1.5};
+  fingers_[2].joint_max = {0.6, 1.5, 1.5, 1.5};
+  fingers_[2].current_joint_targets = {0.0, 0.0, 0.0, 0.0};
 
-  // ring: joint14,15,16
+  // ring
   fingers_[3].name = "ring";
-  fingers_[3].joint_names = {"finger_r_joint14", "finger_r_joint15", "finger_r_joint16"};
-  fingers_[3].weights = {0.5, 0.3, 0.2};
-  fingers_[3].current_joint_targets = {0.0, 0.0, 0.0};
-  fingers_[3].joint_min = {-1.5, -1.5, -1.5};
-  fingers_[3].joint_max = {1.5, 1.5, 1.5};
+  fingers_[3].joint_names = {"finger_r_joint13", "finger_r_joint14", "finger_r_joint15", "finger_r_joint16"};
+  fingers_[3].joint_min = {-0.6, -1.5, -1.5, -1.5};
+  fingers_[3].joint_max = {0.6, 1.5, 1.5, 1.5};
+  fingers_[3].current_joint_targets = {0.0, 0.0, 0.0, 0.0};
 
-  // little: joint18,19,20
+  // little
   fingers_[4].name = "little";
-  fingers_[4].joint_names = {"finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
-  fingers_[4].weights = {0.5, 0.3, 0.2};
-  fingers_[4].current_joint_targets = {0.0, 0.0, 0.0};
-  fingers_[4].joint_min = {-1.5, -1.5, -1.5};
-  fingers_[4].joint_max = {1.5, 1.5, 1.5};
+  fingers_[4].joint_names = {"finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
+  fingers_[4].joint_min = {-0.6, -1.5, -1.5, -1.5};
+  fingers_[4].joint_max = {1.5, 1.5, 1.5, 1.5};
+  fingers_[4].current_joint_targets = {0.0, 0.0, 0.0, 0.0};
 }
 
 void TactileGraspController::init_joint_name_list() {
-  all_control_joint_names_.clear();
-  for (const auto& finger : fingers_) {
-    for (const auto& joint_name : finger.joint_names) {
-      all_control_joint_names_.push_back(joint_name);
-    }
-  }
-
-  // clang-format off
-  all_hand_joint_names_ = {
-      "finger_r_joint1", "finger_r_joint2", "finger_r_joint3", "finger_r_joint4", 
-      "finger_r_joint5", "finger_r_joint6", "finger_r_joint7", "finger_r_joint8", 
-      "finger_r_joint9", "finger_r_joint10", "finger_r_joint11", "finger_r_joint12", 
-      "finger_r_joint13", "finger_r_joint14", "finger_r_joint15", "finger_r_joint16", 
-      "finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
+  all_hand_joint_names_ = {"finger_r_joint1",  "finger_r_joint2",  "finger_r_joint3",  "finger_r_joint4",
+                           "finger_r_joint5",  "finger_r_joint6",  "finger_r_joint7",  "finger_r_joint8",
+                           "finger_r_joint9",  "finger_r_joint10", "finger_r_joint11", "finger_r_joint12",
+                           "finger_r_joint13", "finger_r_joint14", "finger_r_joint15", "finger_r_joint16",
+                           "finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
 
   open_reference_positions_ = {
-    0.297,  -1.792, 0.0, 0.0,   // 1~4
-    0.0,     1.0,   0.0, 0.0,   // 5~8
-    0.0,     1.0,   0.0, 0.0,   // 9~12
-    0.0,     1.0,   0.0, 0.0,   // 13~16
-    0.0,     1.0,   0.0, 0.0    // 17~20
+      0.297, -1.792, 0.0, 0.0, // 1~4
+      0.0,   0.8,    0.0, 0.0, // 5~8
+      0.0,   0.8,    0.0, 0.0, // 9~12
+      0.0,   0.8,    0.0, 0.0, // 13~16
+      0.0,   0.8,    0.0, 0.0  // 17~20
   };
-} // clang-format on
+}
 
-// tactile_force topic callback
-void TactileGraspController::tactile_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
-  if (msg->data.size() < 15) {
-    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "tactile_force size is smaller than 15");
+void TactileGraspController::pressure_callback(const robotis_interfaces::msg::HandPressures::SharedPtr msg) {
+  if (!tactile_sensor_processor_.check_msg(msg)) {
     return;
   }
 
-  // data value index
-  const std::array<int, 5> value_indices = {2, 5, 8, 11, 14};
-
-  if (use_baseline_ && !baseline_ready_) {
-    for (int i = 0; i < k_num_fingers; ++i) {
-      fingers_[i].baseline_force += static_cast<double>(msg->data[value_indices[i]]);
-    }
-    baseline_collected_count_++;
-
-    if (baseline_collected_count_ >= baseline_sample_count_) {
-      for (int i = 0; i < k_num_fingers; ++i) {
-        fingers_[i].baseline_force /= static_cast<double>(baseline_sample_count_);
-      }
-      baseline_ready_ = true;
-      RCLCPP_INFO(this->get_logger(), "Tactile baseline collected.");
-    }
-    return;
-  }
-
-  for (int i = 0; i < k_num_fingers; ++i) {
-    double raw = static_cast<double>(msg->data[value_indices[i]]);
-
-    if (use_baseline_) {
-      raw = std::max(0.0, raw - fingers_[i].baseline_force);
-    }
-
-    fingers_[i].raw_force = raw;
-    fingers_[i].filtered_force = alpha_ * raw + (1.0 - alpha_) * fingers_[i].filtered_force;
-  }
+  const auto sensors = tactile_sensor_processor_.parse_sensors(msg);
+  tactile_sensor_processor_.update_pressure(fingers_, baseline_, sensors);
 }
 
 void TactileGraspController::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
@@ -155,7 +115,6 @@ void TactileGraspController::grasp_state_callback(const std_msgs::msg::Int32::Sh
       state_ = State::CLOSE;
       RCLCPP_INFO(this->get_logger(), "grasp_state=3 received -> State = CLOSE");
     }
-    return;
   }
 }
 
@@ -174,7 +133,7 @@ void TactileGraspController::control_loop() {
     break;
   }
 
-  for (int i = 0; i < k_num_fingers; ++i) {
+  for (int i = 0; i < fingers_num; ++i) {
     prev_filtered_force_[i] = fingers_[i].filtered_force;
   }
 }
@@ -191,25 +150,31 @@ double TactileGraspController::finger_contact_threshold(int finger_idx) const {
 }
 
 void TactileGraspController::handle_close() {
-  for (int i = 0; i < k_num_fingers; ++i) {
+  for (int i = 0; i < fingers_num; ++i) {
     auto& finger = fingers_[i];
 
     if (!finger.contact_detected) {
-      for (size_t j = 0; j < finger.current_joint_targets.size(); ++j) {
-        finger.current_joint_targets[j] += close_step_ * finger.weights[j];
-        finger.current_joint_targets[j] =
-            clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+      if (i == 0) {
+        // thumb : joint3, joint4
+        for (int j = 2; j <= 3; ++j) {
+          finger.current_joint_targets[j] += close_step_;
+          finger.current_joint_targets[j] =
+              clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+        }
+      } else {
+        // others : joint2, joint3, joint4
+        for (int j = 1; j <= 3; ++j) {
+          finger.current_joint_targets[j] += close_step_;
+          finger.current_joint_targets[j] =
+              clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+        }
       }
 
-      // if (finger.filtered_force >= contact_threshold_) {
-      //   finger.contact_detected = true;
-      //   contact_force_[i] = finger.filtered_force;
       if (finger.filtered_force >= finger_contact_threshold(i)) {
         finger.contact_detected = true;
         contact_force_[i] = finger.filtered_force;
 
         RCLCPP_INFO(this->get_logger(), "[%s] contact detected, force=%.3f", finger.name.c_str(), contact_force_[i]);
-        std::cout << "contact_threshold_=" << contact_threshold_ << std::endl;
       }
     }
   }
@@ -224,7 +189,7 @@ void TactileGraspController::handle_close() {
 }
 
 void TactileGraspController::handle_hold() {
-  for (int i = 0; i < k_num_fingers; ++i) {
+  for (int i = 0; i < fingers_num; ++i) {
     auto& finger = fingers_[i];
 
     double error = desired_force_[i] - finger.filtered_force;
@@ -236,10 +201,28 @@ void TactileGraspController::handle_hold() {
 
     dq_scalar = clamp(dq_scalar, -max_delta_per_step_, max_delta_per_step_);
 
-    for (size_t j = 0; j < finger.current_joint_targets.size(); ++j) {
-      finger.current_joint_targets[j] += dq_scalar * finger.weights[j];
-      finger.current_joint_targets[j] =
-          clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+    if (i == 0) {
+      // thumb : joint3, joint4
+      const std::array<int, 2> joints = {2, 3};
+      const std::array<double, 2> weights = {0.5, 0.5};
+
+      for (int k = 0; k < 2; ++k) {
+        const int j = joints[k];
+        finger.current_joint_targets[j] += dq_scalar * weights[k];
+        finger.current_joint_targets[j] =
+            clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+      }
+    } else {
+      // others : joint2, joint3, joint4
+      const std::array<int, 3> joints = {1, 2, 3};
+      const std::array<double, 3> weights = {0.5, 0.3, 0.2};
+
+      for (int k = 0; k < 3; ++k) {
+        const int j = joints[k];
+        finger.current_joint_targets[j] += dq_scalar * weights[k];
+        finger.current_joint_targets[j] =
+            clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+      }
     }
   }
 
@@ -247,7 +230,7 @@ void TactileGraspController::handle_hold() {
 }
 
 void TactileGraspController::reset_for_new_grasp() {
-  for (int i = 0; i < k_num_fingers; ++i) {
+  for (int i = 0; i < fingers_num; ++i) {
     fingers_[i].contact_detected = false;
     contact_force_[i] = 0.0;
     desired_force_[i] = 0.0;
@@ -258,8 +241,8 @@ void TactileGraspController::reset_for_new_grasp() {
 }
 
 void TactileGraspController::set_desired_force_from_contact() {
-  for (int i = 0; i < k_num_fingers; ++i) {
-    desired_force_[i] = std::max(contact_force_[i] * force_target_scale_, contact_threshold_);
+  for (int i = 0; i < fingers_num; ++i) {
+    desired_force_[i] = std::max(contact_force_[i] * force_target_scale_, finger_contact_threshold(i));
 
     RCLCPP_INFO(this->get_logger(), "[%s] desired_force=%.3f", fingers_[i].name.c_str(), desired_force_[i]);
   }
@@ -284,7 +267,6 @@ void TactileGraspController::publish_trajectory() {
 
   point.time_from_start = rclcpp::Duration::from_seconds(trajectory_dt_);
   traj_msg.points.push_back(point);
-
   traj_pub_->publish(traj_msg);
 }
 

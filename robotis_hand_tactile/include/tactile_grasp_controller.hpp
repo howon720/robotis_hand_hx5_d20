@@ -12,95 +12,17 @@
 #include <vector>
 
 namespace robotis_hand_tactile {
+typedef std::array<double, tactiles_num> PressureArray;
+typedef std::array<double, 4> JointValueArray;
 
 class TactileCorrectionPlanner;
 
 class TactileGraspController : public rclcpp::Node {
 public:
-  static constexpr int fingers_num = 5;
-  static constexpr int tactiles_num = 9;
-
-  typedef std::array<double, tactiles_num> PressureArray;
-  typedef std::array<double, 4> JointValueArray;
-
   enum class State {
     IDLE,
     CLOSE,
     HOLD
-  };
-
-  enum class CorrectionType {
-    NONE,
-    X_TOP,
-    X_BOT,
-    Y_LEFT,
-    Y_RIGHT
-  };
-
-  enum class HoldCorrectionStage {
-    Y_FIRST,
-    X_SECOND
-  };
-
-  struct CopInfo {
-    PressureArray pressure{};
-    double total_force{0.0};
-
-    double cop_x{0.0};
-    double cop_y{0.0};
-
-    double top_sum{0.0};
-    double mid_sum{0.0};
-    double bot_sum{0.0};
-
-    double left_sum{0.0};
-    double center_sum{0.0};
-    double right_sum{0.0};
-
-    double top_x_bias{0.0};
-    double mid_x_bias{0.0};
-    double bot_x_bias{0.0};
-
-    // normalized CoP ratio (-1 ~ 1)
-    double cop_x_ratio{0.0};
-    double cop_y_ratio{0.0};
-
-    // lateral correction cost
-    double y_left_cost{0.0};
-    double y_right_cost{0.0};
-    double x_top_cost{0.0};
-    double x_bot_cost{0.0};
-  };
-
-  struct Finger {
-    std::string name;
-    std::array<std::string, 4> joint_names{};
-    JointValueArray joint_min{};
-    JointValueArray joint_max{};
-    JointValueArray current_joint_targets{};
-
-    bool contact_detected{false};
-
-    PressureArray baseline_sum_tactiles{};
-    PressureArray baseline_tactiles{};
-    PressureArray ema_tactiles{};
-    int baseline_samples{0};
-
-    double filtered_force{0.0};
-    CopInfo cop{};
-  };
-
-  struct CorrectionPlan {
-    bool active{false};
-    CorrectionType type{CorrectionType::NONE};
-    int phase{0};
-    int ticks_remaining{0};
-    double cost{0.0};
-  };
-
-  struct CorrectionDecision {
-    CorrectionType type{CorrectionType::NONE};
-    double cost{0.0};
   };
 
   explicit TactileGraspController(const std::string& node_name = "tactile_grasp_controller");
@@ -164,8 +86,8 @@ protected:
   std::unique_ptr<FingerPlanarIk> finger_planar_ik_;
   std::unique_ptr<TactileCorrectionPlanner> correction_planner_;
 
-  std::array<Finger, fingers_num> fingers_{};
-  std::array<CorrectionPlan, fingers_num> correction_plans_{};
+  FingerArray fingers_{};
+  CorrectionPlanArray correction_plans_{};
   std::array<double, fingers_num> desired_force_{};
 
   std::vector<std::string> hand_joint_names_;
@@ -207,6 +129,7 @@ protected:
 
   // thumb: 0, index: 1, middle: 2, ring: 3, little: 4
   std::vector<int> not_use_fingers_{3, 4};
+  std::array<bool, fingers_num> x_ik_failed_{false, false, false, false, false};
 };
 
 } // namespace robotis_hand_tactile

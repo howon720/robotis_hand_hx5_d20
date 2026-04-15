@@ -27,13 +27,13 @@ void TactileSensorProcessor::init_tactiles() {
 }
 
 bool TactileSensorProcessor::check_msg(const HandPressuresPtr msg) const {
-  if (msg->sensors.size() != Controller::fingers_num) {
+  if (msg->sensors.size() != fingers_num) {
     RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "sensors size mismatch: %zu", msg->sensors.size());
     return false;
   }
 
   for (size_t i = 0; i < msg->sensors.size(); ++i) {
-    if (msg->sensors[i].pressure_names.size() != Controller::tactiles_num) {
+    if (msg->sensors[i].pressure_names.size() != tactiles_num) {
       RCLCPP_WARN_THROTTLE(logger_,
                            *clock_,
                            2000,
@@ -43,7 +43,7 @@ bool TactileSensorProcessor::check_msg(const HandPressuresPtr msg) const {
       return false;
     }
 
-    if (msg->sensors[i].pressure_values.size() != Controller::tactiles_num) {
+    if (msg->sensors[i].pressure_values.size() != tactiles_num) {
       RCLCPP_WARN_THROTTLE(logger_,
                            *clock_,
                            2000,
@@ -60,10 +60,10 @@ bool TactileSensorProcessor::check_msg(const HandPressuresPtr msg) const {
 SensorArray TactileSensorProcessor::parse_sensors(const HandPressuresPtr msg) const {
   SensorArray out{};
 
-  for (size_t i = 0; i < Controller::fingers_num; ++i) {
+  for (size_t i = 0; i < fingers_num; ++i) {
     out[i].name = msg->sensors[i].sensor_name;
 
-    for (size_t j = 0; j < Controller::tactiles_num; ++j) {
+    for (size_t j = 0; j < tactiles_num; ++j) {
       out[i].labels[j] = msg->sensors[i].pressure_names[j];
       out[i].values[j] = static_cast<double>(msg->sensors[i].pressure_values[j]);
     }
@@ -72,63 +72,89 @@ SensorArray TactileSensorProcessor::parse_sensors(const HandPressuresPtr msg) co
   return out;
 }
 
+bool TactileSensorProcessor::update_baseline(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
+  if (baseline) {
+    return false;
+  }
+
+  for (int f = 0; f < fingers_num; ++f) {
+    for (int t = 0; t < tactiles_num; ++t) {
+      fingers[f].baseline_sum_tactiles[t] += sensors[f].values[t];
+    }
+    fingers[f].baseline_samples++;
+  }
+
+  bool ready = true;
+  for (int f = 0; f < fingers_num; ++f) {
+    if (fingers[f].baseline_samples < baseline_sample_count_) {
+      ready = false;
+      break;
+    }
+  }
+
+  if (!ready) {
+    return true;
+  }
+
+  for (int f = 0; f < fingers_num; ++f) {
+    const int count = std::max(1, fingers[f].baseline_samples);
+    for (int t = 0; t < tactiles_num; ++t) {
+      fingers[f].baseline_tactiles[t] = fingers[f].baseline_sum_tactiles[t] / static_cast<double>(count);
+      fingers[f].ema_tactiles[t] = 0.0;
+    }
+  }
+
+  baseline = true;
+  RCLCPP_INFO(logger_, "Tactile-wise baseline ready.");
+  return true;
+}
+
+PressureArray TactileSensorProcessor::filter_pressure(FingerData& finger, const Hx5d20SensorData& sensor) const {
+  PressureArray filtered{};
+
+  for (int t = 0; t < tactiles_num; ++t) {
+    double v = sensor.values[t];
+    v -= finger.baseline_tactiles[t];
+
+    if (v < 0.0) { // baseline 보다 압력이 낮아질 시 0으로 고정
+      v = 0.0;
+    }
+
+    finger.ema_tactiles[t] = (1.0 - ema_alpha_) * finger.ema_tactiles[t] + ema_alpha_ * v;
+
+    filtered[t] = finger.ema_tactiles[t];
+  }
+
+  return filtered;
+}
+
+double TactileSensorProcessor::calc_total_force(const PressureArray& pressure) const {
+  return std::accumulate(pressure.begin(), pressure.end(), 0.0);
+}
+
+void TactileSensorProcessor::update_finger_state(int finger_idx,
+                                                 FingerData& finger,
+                                                 const Hx5d20SensorData& sensor) const {
+  const auto filtered = filter_pressure(finger, sensor);
+  const double total_force = calc_total_force(filtered);
+
+  finger.filtered_force = (1.0 - ema_alpha_) * finger.filtered_force + ema_alpha_ * total_force;
+
+  finger.cop = calc_cop(finger_idx, filtered);
+}
+
 void TactileSensorProcessor::update_pressure(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
-  if (!baseline) {
-    for (int f = 0; f < Controller::fingers_num; ++f) {
-      for (int t = 0; t < Controller::tactiles_num; ++t) {
-        fingers[f].baseline_sum_tactiles[t] += sensors[f].values[t];
-      }
-      fingers[f].baseline_samples++;
-    }
-
-    bool ready = true;
-    for (int f = 0; f < Controller::fingers_num; ++f) {
-      if (fingers[f].baseline_samples < baseline_sample_count_) {
-        ready = false;
-        break;
-      }
-    }
-
-    if (ready) {
-      for (int f = 0; f < Controller::fingers_num; ++f) {
-        const int count = std::max(1, fingers[f].baseline_samples);
-        for (int t = 0; t < Controller::tactiles_num; ++t) {
-          fingers[f].baseline_tactiles[t] = fingers[f].baseline_sum_tactiles[t] / static_cast<double>(count);
-          fingers[f].ema_tactiles[t] = 0.0;
-        }
-      }
-      baseline = true;
-      baseline_ = true;
-      RCLCPP_INFO(logger_, "Tactile-wise baseline ready.");
-    }
+  if (update_baseline(fingers, baseline, sensors)) {
     return;
   }
 
-  for (int f = 0; f < Controller::fingers_num; ++f) {
-    PressureArray filtered{};
-    double total_force = 0.0;
-
-    for (int t = 0; t < Controller::tactiles_num; ++t) {
-      double v = sensors[f].values[t];
-
-      v -= fingers[f].baseline_tactiles[t];
-
-      if (v < 0.0) { // baseline 보다 압력이 낮아질 시 0으로 고정
-        v = 0.0;
-      }
-
-      fingers[f].ema_tactiles[t] = (1.0 - ema_alpha_) * fingers[f].ema_tactiles[t] + ema_alpha_ * v;
-
-      filtered[t] = fingers[f].ema_tactiles[t];
-      total_force += filtered[t];
-    }
-
-    fingers[f].filtered_force = (1.0 - ema_alpha_) * fingers[f].filtered_force + ema_alpha_ * total_force;
-
-    fingers[f].cop = calc_cop(f, filtered);
+  for (int f = 0; f < fingers_num; ++f) {
+    update_finger_state(f, fingers[f], sensors[f]);
   }
 }
 
+// ==========================================
+// CoP 계산
 CopInfo TactileSensorProcessor::calc_cop(int finger_idx, const PressureArray& p) const {
   CopInfo info;
   info.pressure = p;
@@ -138,7 +164,7 @@ CopInfo TactileSensorProcessor::calc_cop(int finger_idx, const PressureArray& p)
     return info;
   }
 
-  for (int i = 0; i < Controller::tactiles_num; ++i) {
+  for (int i = 0; i < tactiles_num; ++i) {
     info.cop_x += p[i] * tactile_xy_[i].first;
     info.cop_y += p[i] * tactile_xy_[i].second;
   }
@@ -205,6 +231,7 @@ CopInfo TactileSensorProcessor::calc_cop(int finger_idx, const PressureArray& p)
 
   return info;
 }
+// ============================================
 
 std::optional<CorrectionDecision> TactileSensorProcessor::pick_correction(const CopInfo& info) const {
   if (info.total_force < min_force_for_correction_) {
@@ -215,9 +242,9 @@ std::optional<CorrectionDecision> TactileSensorProcessor::pick_correction(const 
   const double cost_x = std::max(info.x_top_cost, info.x_bot_cost);
   if (cost_x >= cost_threshold_) {
     if (info.x_top_cost > info.x_bot_cost) {
-      return CorrectionDecision{Controller::CorrectionType::X_TOP, info.x_top_cost};
+      return CorrectionDecision{CorrectionType::X_TOP, info.x_top_cost};
     } else {
-      return CorrectionDecision{Controller::CorrectionType::X_BOT, info.x_bot_cost};
+      return CorrectionDecision{CorrectionType::X_BOT, info.x_bot_cost};
     }
   }
 
@@ -225,9 +252,9 @@ std::optional<CorrectionDecision> TactileSensorProcessor::pick_correction(const 
   const double cost_y = std::max(info.y_left_cost, info.y_right_cost);
   if (cost_y >= cost_threshold_) {
     if (info.y_left_cost > info.y_right_cost) {
-      return CorrectionDecision{Controller::CorrectionType::Y_LEFT, info.y_left_cost};
+      return CorrectionDecision{CorrectionType::Y_LEFT, info.y_left_cost};
     } else {
-      return CorrectionDecision{Controller::CorrectionType::Y_RIGHT, info.y_right_cost};
+      return CorrectionDecision{CorrectionType::Y_RIGHT, info.y_right_cost};
     }
   }
 
