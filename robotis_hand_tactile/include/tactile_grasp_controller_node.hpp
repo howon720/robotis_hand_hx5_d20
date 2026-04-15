@@ -1,57 +1,56 @@
 #pragma once
 
-#include <array>
-#include <map>
-#include <mutex>
-
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
+#include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 #include "robotis_interfaces/msg/hand_pressures.hpp"
+
 #include "tactile_grasp_controller.hpp"
+#include "tactile_sensor_processor.hpp"
+
+#include <mutex>
 
 namespace robotis_hand_tactile {
 
-class TactileGraspControllerNode : public rclcpp::Node
-{
+typedef robotis_interfaces::msg::HandPressures HandPressuresMsg;
+typedef robotis_interfaces::msg::HandPressures::SharedPtr HandPressuresPtr;
+typedef sensor_msgs::msg::JointState JointStateMsg;
+typedef sensor_msgs::msg::JointState::SharedPtr JointStatePtr;
+typedef std_msgs::msg::Int32 Int32Msg;
+typedef std_msgs::msg::Int32::SharedPtr Int32Ptr;
+typedef trajectory_msgs::msg::JointTrajectory JointTrajectoryMsg;
+typedef trajectory_msgs::msg::JointTrajectoryPoint JointTrajectoryPointMsg;
+
+typedef TactileGraspController::CorrectionDecision CorrectionDecision;
+typedef TactileGraspController::CopInfo CopInfo;
+
+class TactileGraspControllerNode : public TactileGraspController {
 public:
   TactileGraspControllerNode();
 
-  bool check_msg(const robotis_interfaces::msg::HandPressures::SharedPtr msg) const;
-
-  std::array<Hx5d20SensorData, TactileGraspController::k_num_fingers> 
-  parse_sensors(const robotis_interfaces::msg::HandPressures::SharedPtr msg) const;
-
-  void on_pressure(
-    const robotis_interfaces::msg::HandPressures::SharedPtr msg);
-
-  void on_joint_state(
-    const sensor_msgs::msg::JointState::SharedPtr msg);
-
-  void on_grasp_state(
-    const std_msgs::msg::Int32::SharedPtr msg);
-
-  // main loop
+private:
+  void on_pressure(const HandPressuresPtr msg);
+  void on_joint_state(const JointStatePtr msg);
+  void on_grasp_state(const Int32Ptr msg);
   void control_loop();
 
-  void publish_traj();
+  void publish_traj() override;
+  std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const override;
 
 private:
   std::mutex mutex_;
 
-  TactileGraspController controller_;
-
-  rclcpp::Subscription<robotis_interfaces::msg::HandPressures>::SharedPtr pressure_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr grasp_state_sub_;
-  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_pub_;
+  rclcpp::Subscription<HandPressuresMsg>::SharedPtr pressure_sub_;
+  rclcpp::Subscription<JointStateMsg>::SharedPtr joint_state_sub_;
+  rclcpp::Subscription<Int32Msg>::SharedPtr grasp_state_sub_;
+  rclcpp::Publisher<JointTrajectoryMsg>::SharedPtr traj_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
 
-  double control_rate_hz_{20.0};
-  double trajectory_dt_{0.05};
+  TactileSensorProcessor tactile_sensor_processor_;
 
-  bool baseline_logged_{false};
+  bool baseline_ = false;
 };
 
-}  // namespace robotis_hand_tactile
+} // namespace robotis_hand_tactile

@@ -1,9 +1,6 @@
 #include "tactile_force_rviz.hpp"
 
-TactileForceRviz::TactileForceRviz()
-    : Node("tactile_force_rviz"),
-      baseline_count_(0),
-      baseline_ready_(false) {
+TactileForceRviz::TactileForceRviz() : Node("tactile_force_rviz"), baseline_count_(0), baseline_ready_(false) {
   topic_ = declare_parameter<std::string>("topic", "/dynamic_joint_states");
   sensor_prefix_ = declare_parameter<std::string>("sensor_prefix", "finger_r_sensor");
   num_fingers_ = declare_parameter<int>("num_fingers", 5);
@@ -22,14 +19,12 @@ TactileForceRviz::TactileForceRviz()
 
   center_region_ratio_ = declare_parameter<double>("center_region_ratio", 0.2);
 
-  finger_frames_ = declare_parameter<std::vector<std::string>>(
-      "finger_frames",
-      std::vector<std::string>{
-          "finger_end_r_link1",
-          "finger_end_r_link2",
-          "finger_end_r_link3",
-          "finger_end_r_link4",
-          "finger_end_r_link5"});
+  finger_frames_ = declare_parameter<std::vector<std::string>>("finger_frames",
+                                                               std::vector<std::string>{"finger_end_r_link1",
+                                                                                        "finger_end_r_link2",
+                                                                                        "finger_end_r_link3",
+                                                                                        "finger_end_r_link4",
+                                                                                        "finger_end_r_link5"});
 
   taxel_pitch_x_ = declare_parameter<double>("taxel_pitch_x", 0.003);
   taxel_pitch_y_ = declare_parameter<double>("taxel_pitch_y", 0.003);
@@ -56,9 +51,8 @@ TactileForceRviz::TactileForceRviz()
 
   init_taxel_positions();
 
-  auto qos = use_best_effort_
-                 ? rclcpp::QoS(rclcpp::KeepLast(5)).best_effort().durability_volatile()
-                 : rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile();
+  auto qos = use_best_effort_ ? rclcpp::QoS(rclcpp::KeepLast(5)).best_effort().durability_volatile()
+                              : rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile();
 
   sub_ = create_subscription<control_msgs::msg::DynamicJointState>(
       topic_, qos, std::bind(&TactileForceRviz::callback, this, std::placeholders::_1));
@@ -67,9 +61,8 @@ TactileForceRviz::TactileForceRviz()
   force_pub_ = create_publisher<std_msgs::msg::Float32MultiArray>("/tactile_force", 10);
 
   auto period = std::chrono::duration<double>(1.0 / std::max(update_hz_, 1.0));
-  timer_ = create_wall_timer(
-      std::chrono::duration_cast<std::chrono::milliseconds>(period),
-      std::bind(&TactileForceRviz::publish_markers, this));
+  timer_ = create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
+                             std::bind(&TactileForceRviz::publish_markers, this));
 
   // pose
   cop_marker_offset_ = declare_parameter<double>("cop_marker_offset", 0.01);
@@ -115,8 +108,7 @@ int TactileForceRviz::finger_index_from_joint(const std::string& joint_name) con
   return idx;
 }
 
-std::vector<double> TactileForceRviz::extract_pressures(
-    const control_msgs::msg::InterfaceValue& iv) const {
+std::vector<double> TactileForceRviz::extract_pressures(const control_msgs::msg::InterfaceValue& iv) const {
   std::vector<double> vals(num_taxels_, 0.0);
 
   for (size_t i = 0; i < iv.interface_names.size() && i < iv.values.size(); ++i) {
@@ -132,8 +124,8 @@ std::vector<double> TactileForceRviz::extract_pressures(
   return vals;
 }
 
-std::array<double, 3> TactileForceRviz::map_sensor_vector_to_link(
-    int finger_idx, double sx, double sy, double sn) const {
+std::array<double, 3>
+TactileForceRviz::map_sensor_vector_to_link(int finger_idx, double sx, double sy, double sn) const {
   if (finger_idx == 0) {
     return {sx, -sy, sn};
   }
@@ -141,8 +133,7 @@ std::array<double, 3> TactileForceRviz::map_sensor_vector_to_link(
   return {sn, sx, -sy};
 }
 
-void TactileForceRviz::callback(
-    const control_msgs::msg::DynamicJointState::SharedPtr msg) {
+void TactileForceRviz::callback(const control_msgs::msg::DynamicJointState::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   for (size_t j = 0; j < msg->joint_names.size() && j < msg->interface_values.size(); ++j) {
@@ -212,8 +203,7 @@ void TactileForceRviz::finalize_baseline() {
   RCLCPP_INFO(get_logger(), "Baseline calibrated.");
 }
 
-std::array<double, 3> TactileForceRviz::compute_force_vector(
-    int finger_idx, const std::vector<double>& p) const {
+std::array<double, 3> TactileForceRviz::compute_force_vector(int finger_idx, const std::vector<double>& p) const {
   double total = std::accumulate(p.begin(), p.end(), 0.0);
   if (total <= 1e-6) {
     return {0.0, 0.0, 0.0};
@@ -248,15 +238,9 @@ std::array<double, 3> TactileForceRviz::compute_force_vector(
     return {0.0, 0.0, 0.0};
   }
 
-  double arrow_len = std::clamp(
-      total * force_to_arrow_scale_,
-      min_arrow_len_,
-      max_arrow_len_);
+  double arrow_len = std::clamp(total * force_to_arrow_scale_, min_arrow_len_, max_arrow_len_);
 
-  return {
-      v[0] / norm * arrow_len,
-      v[1] / norm * arrow_len,
-      v[2] / norm * arrow_len};
+  return {v[0] / norm * arrow_len, v[1] / norm * arrow_len, v[2] / norm * arrow_len};
 }
 
 // for reactive_force_region.cpp
@@ -272,8 +256,8 @@ int TactileForceRviz::classify_region(double cop_x, double cop_y, double eps_x, 
   }
 }
 
-TactileForceRviz::DirectionInfo TactileForceRviz::compute_direction_info(
-    int finger_idx, const std::vector<double>& p) const {
+TactileForceRviz::DirectionInfo TactileForceRviz::compute_direction_info(int finger_idx,
+                                                                         const std::vector<double>& p) const {
   DirectionInfo info;
   info.total_force = std::accumulate(p.begin(), p.end(), 0.0);
 
@@ -302,8 +286,7 @@ TactileForceRviz::DirectionInfo TactileForceRviz::compute_direction_info(
 }
 
 // determining the visualization pose value
-geometry_msgs::msg::Point TactileForceRviz::cop_point_in_frame(
-    int finger_idx, const DirectionInfo& info) const {
+geometry_msgs::msg::Point TactileForceRviz::cop_point_in_frame(int finger_idx, const DirectionInfo& info) const {
   geometry_msgs::msg::Point p;
 
   // visualize scale
@@ -323,8 +306,7 @@ geometry_msgs::msg::Point TactileForceRviz::cop_point_in_frame(
   return p;
 }
 
-visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
-    int finger_idx, const DirectionInfo& info) const {
+visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(int finger_idx, const DirectionInfo& info) const {
   visualization_msgs::msg::Marker m;
   m.header.stamp = now();
   m.header.frame_id = finger_frames_[finger_idx];
@@ -369,8 +351,7 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(
 }
 
 // publish_pose_marker
-visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(
-    int finger_idx, const DirectionInfo& info) const {
+visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(int finger_idx, const DirectionInfo& info) const {
   visualization_msgs::msg::Marker m;
   m.header.stamp = now();
   m.header.frame_id = finger_frames_[finger_idx];

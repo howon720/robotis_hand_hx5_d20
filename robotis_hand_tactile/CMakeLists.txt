@@ -53,6 +53,9 @@ install(TARGETS reactive_force_region
 add_executable(tactile_grasp_controller_node 
               src/tactile_grasp_controller_node.cpp
               src/tactile_grasp_controller.cpp
+              src/tactile_sensor_processor.cpp
+              src/tactile_correction_planner.cpp
+              src/tactile_grasp_controller_init.cpp
               src/finger_ik_solver.cpp)
 target_include_directories(tactile_grasp_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

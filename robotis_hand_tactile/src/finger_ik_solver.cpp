@@ -12,12 +12,10 @@ double clamp_value(double v, double lo, double hi) {
 }
 } // namespace
 
-FingerPlanarIk::FingerPlanarIk(const std::array<FingerModel, fingers_num>& models)
-    : models_(models) {
+FingerPlanarIk::FingerPlanarIk(const std::array<FingerModel, fingers_num>& models) : models_(models) {
 }
 
-FingerPlanarIk::Pose2D FingerPlanarIk::fk(
-    int finger_idx, const std::array<double, dof>& q) const {
+FingerPlanarIk::Pose2D FingerPlanarIk::fk(int finger_idx, const std::array<double, dof>& q) const {
   Pose2D pose;
   double angle = 0.0;
 
@@ -31,22 +29,14 @@ FingerPlanarIk::Pose2D FingerPlanarIk::fk(
   return pose;
 }
 
-void FingerPlanarIk::clamp_to_limits(
-    int finger_idx, std::array<double, dof>& q) const {
+void FingerPlanarIk::clamp_to_limits(int finger_idx, std::array<double, dof>& q) const {
   for (int i = 0; i < dof; ++i) {
-    q[i] = clamp_value(
-        q[i],
-        models_[finger_idx].joint_min[i],
-        models_[finger_idx].joint_max[i]);
+    q[i] = clamp_value(q[i], models_[finger_idx].joint_min[i], models_[finger_idx].joint_max[i]);
   }
 }
 
-std::optional<std::array<double, FingerPlanarIk::dof>>
-FingerPlanarIk::solve_shift_yz(
-    int finger_idx,
-    const std::array<double, dof>& current_q,
-    double delta_y,
-    double delta_z) const {
+std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shift_yz(
+    int finger_idx, const std::array<double, dof>& current_q, double delta_y, double delta_z) const {
   const Pose2D current_pose = fk(finger_idx, current_q);
 
   Pose2D target = current_pose;
@@ -56,11 +46,8 @@ FingerPlanarIk::solve_shift_yz(
   return solve_exact_constrained_ik(finger_idx, target, current_q);
 }
 
-std::optional<std::array<double, FingerPlanarIk::dof>>
-FingerPlanarIk::solve_exact_constrained_ik(
-    int finger_idx,
-    const Pose2D& target,
-    const std::array<double, dof>& current_q) const {
+std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_exact_constrained_ik(
+    int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const {
   const double l1 = models_[finger_idx].link_lengths[0];
   const double l2 = models_[finger_idx].link_lengths[1];
   const double l3 = models_[finger_idx].link_lengths[2];
@@ -85,30 +72,22 @@ FingerPlanarIk::solve_exact_constrained_ik(
     const double a2 = q1 + q2;
     const double a3 = 2.0 * (q1 + q2) + c; // q1 + q2 + q3
 
-    const double y =
-        l1 * std::sin(a1) +
-        l2 * std::sin(a2) +
-        l3 * std::sin(a3);
+    const double y = l1 * std::sin(a1) + l2 * std::sin(a2) + l3 * std::sin(a3);
 
-    const double z =
-        l1 * std::cos(a1) +
-        l2 * std::cos(a2) +
-        l3 * std::cos(a3);
+    const double z = l1 * std::cos(a1) + l2 * std::cos(a2) + l3 * std::cos(a3);
 
     ey = target.y - y;
     ez = target.z - z;
   };
 
-  // residual 가장 작은 해
-  const std::vector<std::array<double, 2>> seeds = {
-    { q1c, q2c },
-    { q1c + 0.05, q2c },
-    { q1c - 0.05, q2c },
-    { q1c, q2c + 0.05 },
-    { q1c, q2c - 0.05 },
-    { q1c + 0.05, q2c + 0.05 },
-    { q1c - 0.05, q2c - 0.05 }
-  };
+  // low residual sol
+  const std::vector<std::array<double, 2>> seeds = {{q1c, q2c},
+                                                    {q1c + 0.05, q2c},
+                                                    {q1c - 0.05, q2c},
+                                                    {q1c, q2c + 0.05},
+                                                    {q1c, q2c - 0.05},
+                                                    {q1c + 0.05, q2c + 0.05},
+                                                    {q1c - 0.05, q2c - 0.05}};
 
   std::optional<std::array<double, dof>> best_q;
   double best_cost = std::numeric_limits<double>::infinity();
@@ -117,17 +96,9 @@ FingerPlanarIk::solve_exact_constrained_ik(
     double q1 = seed[0];
     double q2 = seed[1];
 
-    bool converged = false;
-
     for (int iter = 0; iter < 50; ++iter) {
       double ey = 0.0, ez = 0.0;
       residual(q1, q2, ey, ez);
-
-      const double err = std::sqrt(ey * ey + ez * ez);
-      if (err < 1e-6) {
-        converged = true;
-        break;
-      }
 
       const double a1 = q1;
       const double a2 = q1 + q2;
@@ -169,9 +140,7 @@ FingerPlanarIk::solve_exact_constrained_ik(
 
     const double pos_err = std::sqrt(ey * ey + ez * ez);
     const double joint_change =
-        std::abs(q_candidate[0] - q1c) +
-        std::abs(q_candidate[1] - q2c) +
-        std::abs(q_candidate[2] - q3c);
+        std::abs(q_candidate[0] - q1c) + std::abs(q_candidate[1] - q2c) + std::abs(q_candidate[2] - q3c);
 
     // best_path: low residual + low regularization
     const double cost = pos_err + 0.01 * joint_change;
@@ -189,9 +158,7 @@ FingerPlanarIk::solve_exact_constrained_ik(
   // too far : failed
   const auto p_final = fk(finger_idx, *best_q);
   const double final_err =
-      std::sqrt(
-          (target.y - p_final.y) * (target.y - p_final.y) +
-          (target.z - p_final.z) * (target.z - p_final.z));
+      std::sqrt((target.y - p_final.y) * (target.y - p_final.y) + (target.z - p_final.z) * (target.z - p_final.z));
 
   if (final_err > 5e-4) {
     return std::nullopt;

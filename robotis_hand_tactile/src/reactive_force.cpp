@@ -4,15 +4,10 @@
 #include <algorithm>
 #include <cmath>
 
-ReactiveForceNode::ReactiveForceNode()
-    : Node("reactive_force"),
-      step_count_(0) {
-  force_topic_ = this->declare_parameter<std::string>(
-      "force_topic", "/tactile_force");
-  joint_state_topic_ = this->declare_parameter<std::string>(
-      "joint_state_topic", "/joint_states");
-  traj_topic_ = this->declare_parameter<std::string>(
-      "traj_topic", "/right_hand_controller/joint_trajectory");
+ReactiveForceNode::ReactiveForceNode() : Node("reactive_force"), step_count_(0) {
+  force_topic_ = this->declare_parameter<std::string>("force_topic", "/tactile_force");
+  joint_state_topic_ = this->declare_parameter<std::string>("joint_state_topic", "/joint_states");
+  traj_topic_ = this->declare_parameter<std::string>("traj_topic", "/right_hand_controller/joint_trajectory");
 
   history_len_ = this->declare_parameter<int>("history_len", 3);
   startup_ignore_steps_ = this->declare_parameter<int>("startup_ignore_steps", 20); // 초반 몇 초 무시
@@ -79,8 +74,7 @@ ReactiveForceNode::ReactiveForceNode()
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
       joint_state_topic_, 50, std::bind(&ReactiveForceNode::jointStateCallback, this, std::placeholders::_1));
 
-  traj_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-      traj_topic_, 10);
+  traj_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(traj_topic_, 10);
 
   grasp_state_sub_ = this->create_subscription<std_msgs::msg::Int32>(
       "/grasp_state", 10, std::bind(&ReactiveForceNode::graspStateCallback, this, std::placeholders::_1));
@@ -149,10 +143,7 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
 
   if (msg->data.size() < finger_names_.size() * 3) { // data 구조 바뀌면 여기 부분 수정
     RCLCPP_WARN(
-        this->get_logger(),
-        "Force array too small. expected=%zu, got=%zu",
-        finger_names_.size(),
-        msg->data.size());
+        this->get_logger(), "Force array too small. expected=%zu, got=%zu", finger_names_.size(), msg->data.size());
     return;
   }
 
@@ -194,25 +185,22 @@ void ReactiveForceNode::forceCallback(const std_msgs::msg::Float32MultiArray::Sh
     double sl = slope(hist);
 
     // pub 조건
-    bool trigger =
-        (force > min_contact_force_[finger]) &&
-        (d > delta_threshold_[finger]) &&
-        (var > variation_threshold_[finger]); // &&
+    bool trigger = (force > min_contact_force_[finger]) && (d > delta_threshold_[finger]) &&
+                   (var > variation_threshold_[finger]); // &&
     //   (sl > delta_threshold_[finger] * 0.5);
 
     if (trigger) {
       release_fingers.push_back(finger);
       cooldown_counter_[finger] = cooldown_steps_default_;
 
-      RCLCPP_INFO(
-          this->get_logger(),
-          "[RELEASE] %s force=%.2f avg=%.2f delta=%.2f var=%.2f slope=%.2f",
-          finger.c_str(),
-          force,
-          avg,
-          d,
-          var,
-          sl);
+      RCLCPP_INFO(this->get_logger(),
+                  "[RELEASE] %s force=%.2f avg=%.2f delta=%.2f var=%.2f slope=%.2f",
+                  finger.c_str(),
+                  force,
+                  avg,
+                  d,
+                  var,
+                  sl);
     }
   }
 
@@ -240,10 +228,7 @@ void ReactiveForceNode::publishReleaseTrajectory(const std::vector<std::string>&
 
       auto joint_it = current_joint_positions_.find(joint_name);
       if (joint_it == current_joint_positions_.end()) {
-        RCLCPP_WARN(
-            this->get_logger(),
-            "Current joint position not found for %s",
-            joint_name.c_str());
+        RCLCPP_WARN(this->get_logger(), "Current joint position not found for %s", joint_name.c_str());
         continue;
       }
 

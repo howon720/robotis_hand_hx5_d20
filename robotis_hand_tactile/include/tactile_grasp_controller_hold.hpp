@@ -27,8 +27,7 @@ private:
   enum class State {
     IDLE,
     CLOSE,
-    HOLD,
-    OPEN
+    HOLD
   };
 
   struct FingerConfig {
@@ -101,7 +100,6 @@ private:
   void handle_idle();
   void handle_close();
   void handle_hold();
-  void handle_open();
 
   void reset_for_new_grasp();
   void set_desired_force_from_contact();
