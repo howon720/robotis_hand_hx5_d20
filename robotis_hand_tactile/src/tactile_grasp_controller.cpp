@@ -6,11 +6,13 @@
 namespace robotis_hand_tactile {
 
 TactileGraspController::TactileGraspController(const std::string& node_name) : Node(node_name) {
-  init_fingers();
-  init_joints();
+  // Init_hx5d20
+  fingers_ = robotis_hand_tactile::init_fingers();
+  hand_joint_names_ = robotis_hand_tactile::init_joint_names();
+  init_positions_ = robotis_hand_tactile::init_positions();
 
+  // IK init_Setting
   std::array<FingerPlanarIk::FingerModel, 4> ik_models{};
-
   for (int i = 0; i < 4; ++i) {
     const int finger_idx = i + 1; // index=1, middle=2, ring=3, little=4
 
@@ -26,6 +28,12 @@ TactileGraspController::TactileGraspController(const std::string& node_name) : N
 
   finger_planar_ik_ = std::make_unique<FingerPlanarIk>(ik_models);
   correction_planner_ = std::make_unique<TactileCorrectionPlanner>(*this);
+
+  for (auto& finger : fingers_) {
+    for (int j = 0; j < 4; ++j) {
+      finger.current_joint_targets[j] = get_open_pos(finger.joint_names[j]);
+    }
+  }
 }
 
 TactileGraspController::~TactileGraspController() = default;
@@ -46,7 +54,7 @@ void TactileGraspController::close_unused_finger() {
     auto& finger = fingers_[i];
 
     for (int j = 1; j <= 3; ++j) {
-      finger.current_joint_targets[j] += close_step_;
+      finger.current_joint_targets[j] += close_step_ * 3;
       finger.current_joint_targets[j] =
           clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
     }
@@ -325,6 +333,9 @@ bool TactileGraspController::all_contacted() const {
 
 bool TactileGraspController::all_finger_contacted() const {
   for (int i = 0; i < fingers_num; ++i) {
+    if (unused_finger(i)) {
+      continue;
+    }
     if (fingers_[i].filtered_force < regrasp_force_ratio_ * finger_contact_threshold(i)) {
       return false;
     }

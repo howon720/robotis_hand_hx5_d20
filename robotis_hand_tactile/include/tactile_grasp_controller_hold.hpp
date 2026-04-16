@@ -18,24 +18,18 @@
 
 namespace robotis_hand_tactile_hold {
 
+typedef robotis_interfaces::msg::HandPressures HandPressuresMsg;
+typedef robotis_interfaces::msg::HandPressures::SharedPtr HandPressuresPtr;
+typedef sensor_msgs::msg::JointState JointStateMsg;
+typedef sensor_msgs::msg::JointState::SharedPtr JointStatePtr;
+typedef std_msgs::msg::Int32 Int32Msg;
+typedef std_msgs::msg::Int32::SharedPtr Int32Ptr;
+typedef trajectory_msgs::msg::JointTrajectory JointTrajectoryMsg;
+typedef robotis_hand_tactile::FingerArray FingerArrayMsg;
+
 class TactileGraspController : public rclcpp::Node {
 public:
   static constexpr int fingers_num = robotis_hand_tactile::fingers_num;
-
-  typedef robotis_interfaces::msg::HandPressures HandPressuresMsg;
-  typedef robotis_interfaces::msg::HandPressures::SharedPtr HandPressuresPtr;
-
-  typedef sensor_msgs::msg::JointState JointStateMsg;
-  typedef sensor_msgs::msg::JointState::SharedPtr JointStatePtr;
-
-  typedef std_msgs::msg::Int32 Int32Msg;
-  typedef std_msgs::msg::Int32::SharedPtr Int32Ptr;
-
-  typedef trajectory_msgs::msg::JointTrajectory JointTrajectoryMsg;
-  typedef trajectory_msgs::msg::JointTrajectoryPoint JointTrajectoryPointMsg;
-
-  typedef robotis_hand_tactile::FingerData FingerDataMsg;
-  typedef robotis_hand_tactile::FingerArray FingerArrayMsg;
 
   enum class State {
     IDLE,
@@ -46,9 +40,6 @@ public:
   TactileGraspController();
 
 private:
-  void init_finger_configs();
-  void init_joint_name_list();
-
   void pressure_callback(const HandPressuresPtr msg);
   void joint_state_callback(const JointStatePtr msg);
   void grasp_state_callback(const Int32Ptr msg);
@@ -59,18 +50,18 @@ private:
   void handle_close();
   void handle_hold();
 
-  void reset_for_new_grasp();
-  void set_desired_force_from_contact();
-  void publish_trajectory();
-  void sync_targets_from_joint_state();
+  void reset_grasp();
+  void set_desired_force();
+  void publish_traj();
+  void sync_targets();
 
-  bool all_fingers_contacted() const;
-  bool get_mapped_joint_target(const std::string& joint_name, double& target) const;
+  bool all_contacted() const;
+  bool get_target(const std::string& joint_name, double& target) const;
 
-  double get_open_reference_position(const std::string& joint_name) const;
+  double get_open_pos(const std::string& joint_name) const;
   double apply_deadband(double error) const;
   double clamp(double value, double min_v, double max_v) const;
-  double get_joint_position(const std::string& joint_name) const;
+  double get_joint_pos(const std::string& joint_name) const;
   double finger_contact_threshold(int finger_idx) const;
 
   std::string state_to_string(State s) const;
@@ -90,29 +81,28 @@ private:
   std::array<double, fingers_num> desired_force_{};
   std::array<double, fingers_num> prev_filtered_force_{};
 
-  std::vector<std::string> all_hand_joint_names_;
-  std::vector<double> open_reference_positions_;
-
-  std::map<std::string, double> joint_position_map_;
+  std::vector<std::string> hand_joint_names_;
+  std::vector<double> init_positions_;
+  std::map<std::string, double> curr_joint_;
 
   State state_{State::IDLE};
 
   bool joint_state_received_{false};
   bool baseline_{false};
 
-  double control_rate_hz_{20.0};
+  double control_hz_{20.0};
   double trajectory_dt_{0.05};
 
-  double close_step_{0.01};
-  double contact_threshold_{30.0};
-  double thumb_contact_ratio_{2.0};
+  double close_step_{0.03};
+  double contact_threshold_{5.0};
+  double thumb_contact_ratio_{3.0};
 
-  double force_target_scale_{1.0};
+  double reactive_force_scale_{1.0};
 
-  double deadband_low_{-5.0};
-  double deadband_high_{5.0};
+  double deadband_L{-5.0}; // 오차 : 손떨림 보정
+  double deadband_H{5.0};
   double kf_{0.002};
-  double max_delta_per_step_{0.01};
+  double reactive_step_{0.01};
 };
 
 } // namespace robotis_hand_tactile_hold

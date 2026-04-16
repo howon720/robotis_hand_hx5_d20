@@ -2,6 +2,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "hx5d20_struct.h"
+#include "hx5d20_init.hpp"
 #include "finger_ik_solver.hpp"
 
 #include <array>
