@@ -8,7 +8,7 @@
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 
 #include "tactile_grasp_controller.hpp"
-#include "tactile_sensor_processor.hpp"
+#include "tactile_sensor.hpp"
 
 #include <mutex>
 
@@ -46,7 +46,7 @@ private:
   rclcpp::TimerBase::SharedPtr control_timer_;
   rclcpp::TimerBase::SharedPtr unused_finger_timer_;
 
-  TactileSensorProcessor tactile_sensor_processor_;
+  TactileSensor tactile_sensor_;
 
   bool baseline_ = false;
 };

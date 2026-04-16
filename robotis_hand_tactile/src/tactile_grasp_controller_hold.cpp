@@ -9,7 +9,7 @@ using namespace std::chrono_literals;
 namespace robotis_hand_tactile_hold {
 
 TactileGraspController::TactileGraspController()
-    : Node("tactile_grasp_controller"), tactile_sensor_processor_(this->get_logger(), this->get_clock()) {
+    : Node("tactile_grasp_controller"), tactile_sensor_(this->get_logger(), this->get_clock()) {
 
   fingers_ = robotis_hand_tactile::init_fingers();
   hand_joint_names_ = robotis_hand_tactile::init_joint_names();
@@ -37,12 +37,12 @@ TactileGraspController::TactileGraspController()
 }
 
 void TactileGraspController::pressure_callback(const robotis_interfaces::msg::HandPressures::SharedPtr msg) {
-  if (!tactile_sensor_processor_.check_msg(msg)) {
+  if (!tactile_sensor_.check_msg(msg)) {
     return;
   }
 
-  const auto sensors = tactile_sensor_processor_.parse_sensors(msg);
-  tactile_sensor_processor_.update_pressure(fingers_, baseline_, sensors);
+  const auto sensors = tactile_sensor_.parse_sensors(msg);
+  tactile_sensor_.update_pressure(fingers_, baseline_, sensors);
 }
 
 void TactileGraspController::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {

@@ -21,10 +21,6 @@ void TactileCorrectionPlanner::start_correction(int finger_idx) {
 
   // max_min limit
   if (!is_at_joint_limit(finger_idx, maybe_decision->type)) {
-    RCLCPP_INFO(controller_.get_logger(),
-                "[%s] correction skipped: %s (joint limit)",
-                controller_.fingers_[finger_idx].name.c_str(),
-                correction_str(maybe_decision->type).c_str());
     return;
   }
 

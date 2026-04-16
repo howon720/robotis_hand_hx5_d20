@@ -1,4 +1,4 @@
-#include "tactile_sensor_processor.hpp"
+#include "tactile_sensor.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -6,12 +6,12 @@
 
 namespace robotis_hand_tactile {
 
-TactileSensorProcessor::TactileSensorProcessor(const rclcpp::Logger& logger, const rclcpp::Clock::SharedPtr& clock)
+TactileSensor::TactileSensor(const rclcpp::Logger& logger, const rclcpp::Clock::SharedPtr& clock)
     : logger_(logger), clock_(clock) {
   init_tactiles();
 }
 
-void TactileSensorProcessor::init_tactiles() {
+void TactileSensor::init_tactiles() {
   const double x_offset = tactile_x_ / 3.0;
   const double y_offset = tactile_y_ / 3.0;
 
@@ -26,7 +26,7 @@ void TactileSensorProcessor::init_tactiles() {
   }
 }
 
-bool TactileSensorProcessor::check_msg(const HandPressuresPtr msg) const {
+bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
   if (msg->sensors.size() != fingers_num) {
     RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "sensors size mismatch: %zu", msg->sensors.size());
     return false;
@@ -57,7 +57,7 @@ bool TactileSensorProcessor::check_msg(const HandPressuresPtr msg) const {
   return true;
 }
 
-SensorArray TactileSensorProcessor::parse_sensors(const HandPressuresPtr msg) const {
+SensorArray TactileSensor::parse_sensors(const HandPressuresPtr msg) const {
   SensorArray out{};
 
   for (size_t i = 0; i < fingers_num; ++i) {
@@ -72,7 +72,7 @@ SensorArray TactileSensorProcessor::parse_sensors(const HandPressuresPtr msg) co
   return out;
 }
 
-bool TactileSensorProcessor::update_baseline(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
+bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
   if (baseline) {
     return false;
   }
@@ -109,7 +109,7 @@ bool TactileSensorProcessor::update_baseline(FingerArray& fingers, bool& baselin
   return true;
 }
 
-PressureArray TactileSensorProcessor::filter_pressure(FingerData& finger, const Hx5d20SensorData& sensor) const {
+PressureArray TactileSensor::filter_pressure(FingerData& finger, const Hx5d20SensorData& sensor) const {
   PressureArray filtered{};
 
   for (int t = 0; t < tactiles_num; ++t) {
@@ -128,13 +128,11 @@ PressureArray TactileSensorProcessor::filter_pressure(FingerData& finger, const 
   return filtered;
 }
 
-double TactileSensorProcessor::calc_total_force(const PressureArray& pressure) const {
+double TactileSensor::calc_total_force(const PressureArray& pressure) const {
   return std::accumulate(pressure.begin(), pressure.end(), 0.0);
 }
 
-void TactileSensorProcessor::update_finger_state(int finger_idx,
-                                                 FingerData& finger,
-                                                 const Hx5d20SensorData& sensor) const {
+void TactileSensor::update_finger_state(int finger_idx, FingerData& finger, const Hx5d20SensorData& sensor) const {
   const auto filtered = filter_pressure(finger, sensor);
   const double total_force = calc_total_force(filtered);
 
@@ -143,7 +141,7 @@ void TactileSensorProcessor::update_finger_state(int finger_idx,
   finger.cop = calc_cop(finger_idx, filtered);
 }
 
-void TactileSensorProcessor::update_pressure(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
+void TactileSensor::update_pressure(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
   if (update_baseline(fingers, baseline, sensors)) {
     return;
   }
@@ -155,7 +153,7 @@ void TactileSensorProcessor::update_pressure(FingerArray& fingers, bool& baselin
 
 // ==========================================
 // CoP 계산
-CopInfo TactileSensorProcessor::calc_cop(int finger_idx, const PressureArray& p) const {
+CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
   CopInfo info;
   info.pressure = p;
   info.total_force = std::accumulate(p.begin(), p.end(), 0.0);
@@ -233,7 +231,7 @@ CopInfo TactileSensorProcessor::calc_cop(int finger_idx, const PressureArray& p)
 }
 // ============================================
 
-std::optional<CorrectionDecision> TactileSensorProcessor::pick_correction(const CopInfo& info) const {
+std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& info) const {
   if (info.total_force < min_force_for_correction_) {
     return std::nullopt;
   }
@@ -261,7 +259,7 @@ std::optional<CorrectionDecision> TactileSensorProcessor::pick_correction(const 
   return std::nullopt;
 }
 
-double TactileSensorProcessor::clamp(double v, double min_v, double max_v) const {
+double TactileSensor::clamp(double v, double min_v, double max_v) const {
   return std::max(min_v, std::min(v, max_v));
 }
 

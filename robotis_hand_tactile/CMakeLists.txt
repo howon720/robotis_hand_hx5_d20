@@ -37,7 +37,7 @@ install(TARGETS tactile_force_rviz
 add_executable(tactile_grasp_controller_node 
               src/tactile_grasp_controller_node.cpp
               src/tactile_grasp_controller.cpp
-              src/tactile_sensor_processor.cpp
+              src/tactile_sensor.cpp
               src/tactile_correction_planner.cpp
               src/hx5d20_init.cpp
               src/finger_ik_solver.cpp)
@@ -50,7 +50,7 @@ install(TARGETS tactile_grasp_controller_node
 
 add_executable(tactile_grasp_controller_hold 
               src/tactile_grasp_controller_hold.cpp
-              src/tactile_sensor_processor.cpp
+              src/tactile_sensor.cpp
               src/hx5d20_init.cpp)
 target_include_directories(tactile_grasp_controller_hold PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -62,6 +62,11 @@ install(TARGETS tactile_grasp_controller_hold
 install(PROGRAMS
   scripts/finger_pressure.py
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 install(DIRECTORY include/

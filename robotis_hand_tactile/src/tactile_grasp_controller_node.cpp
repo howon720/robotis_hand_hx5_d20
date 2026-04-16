@@ -5,8 +5,7 @@ using namespace std::chrono_literals;
 namespace robotis_hand_tactile {
 
 TactileGraspControllerNode::TactileGraspControllerNode()
-    : TactileGraspController("tactile_grasp_controller"),
-      tactile_sensor_processor_(this->get_logger(), this->get_clock()) {
+    : TactileGraspController("tactile_grasp_controller"), tactile_sensor_(this->get_logger(), this->get_clock()) {
 
   pressure_sub_ = this->create_subscription<HandPressuresMsg>(
       "/right_hand/finger_pressures",
@@ -38,12 +37,12 @@ TactileGraspControllerNode::TactileGraspControllerNode()
 void TactileGraspControllerNode::on_pressure(const HandPressuresPtr msg) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  if (!tactile_sensor_processor_.check_msg(msg)) {
+  if (!tactile_sensor_.check_msg(msg)) {
     return;
   }
 
-  const auto sensors = tactile_sensor_processor_.parse_sensors(msg);
-  tactile_sensor_processor_.update_pressure(fingers_, baseline_, sensors);
+  const auto sensors = tactile_sensor_.parse_sensors(msg);
+  tactile_sensor_.update_pressure(fingers_, baseline_, sensors);
 }
 
 void TactileGraspControllerNode::on_joint_state(const JointStatePtr msg) {
@@ -111,7 +110,7 @@ void TactileGraspControllerNode::publish_traj() {
 }
 
 std::optional<CorrectionDecision> TactileGraspControllerNode::pick_correction(const CopInfo& info) const {
-  return tactile_sensor_processor_.pick_correction(info);
+  return tactile_sensor_.pick_correction(info);
 }
 
 } // namespace robotis_hand_tactile

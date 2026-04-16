@@ -1,11 +1,10 @@
 #include "tactile_force_rviz.hpp"
 
 TactileForceRviz::TactileForceRviz() : Node("tactile_force_rviz"), baseline_count_(0), baseline_ready_(false) {
-  topic_ = declare_parameter<std::string>("topic", "/dynamic_joint_states");
+  topic_ = declare_parameter<std::string>("topic", "/right_hand/finger_pressures");
   sensor_prefix_ = declare_parameter<std::string>("sensor_prefix", "finger_r_sensor");
   num_fingers_ = declare_parameter<int>("num_fingers", 5);
   num_taxels_ = declare_parameter<int>("num_taxels", 9);
-  pressure_iface_prefix_ = declare_parameter<std::string>("pressure_iface_prefix", "Present Pressure");
   update_hz_ = declare_parameter<double>("update_hz", 20.0);
   use_best_effort_ = declare_parameter<bool>("use_best_effort", true);
 
@@ -54,7 +53,7 @@ TactileForceRviz::TactileForceRviz() : Node("tactile_force_rviz"), baseline_coun
   auto qos = use_best_effort_ ? rclcpp::QoS(rclcpp::KeepLast(5)).best_effort().durability_volatile()
                               : rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile();
 
-  sub_ = create_subscription<control_msgs::msg::DynamicJointState>(
+  sub_ = create_subscription<HandPressures>(
       topic_, qos, std::bind(&TactileForceRviz::callback, this, std::placeholders::_1));
 
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic_, 10);
@@ -85,12 +84,12 @@ void TactileForceRviz::init_taxel_positions() {
   }
 }
 
-int TactileForceRviz::finger_index_from_joint(const std::string& joint_name) const {
-  if (joint_name.rfind(sensor_prefix_, 0) != 0) {
+int TactileForceRviz::finger_index_from_sensor(const std::string& sensor_name) const {
+  if (sensor_name.rfind(sensor_prefix_, 0) != 0) {
     return -1;
   }
 
-  std::string suffix = joint_name.substr(sensor_prefix_.size());
+  std::string suffix = sensor_name.substr(sensor_prefix_.size());
   if (suffix.empty()) {
     return -1;
   }
@@ -108,19 +107,14 @@ int TactileForceRviz::finger_index_from_joint(const std::string& joint_name) con
   return idx;
 }
 
-std::vector<double> TactileForceRviz::extract_pressures(const control_msgs::msg::InterfaceValue& iv) const {
+std::vector<double> TactileForceRviz::extract_pressures(const TactileSensor& sensor_msg) const {
   std::vector<double> vals(num_taxels_, 0.0);
 
-  for (size_t i = 0; i < iv.interface_names.size() && i < iv.values.size(); ++i) {
-    const auto& name = iv.interface_names[i];
-    for (int t = 1; t <= num_taxels_; ++t) {
-      std::string key = pressure_iface_prefix_ + " " + std::to_string(t);
-      if (name == key) {
-        vals[t - 1] = iv.values[i];
-        break;
-      }
-    }
+  const size_t count = std::min(static_cast<size_t>(num_taxels_), sensor_msg.pressure_values.size());
+  for (size_t i = 0; i < count; ++i) {
+    vals[i] = static_cast<double>(sensor_msg.pressure_values[i]);
   }
+
   return vals;
 }
 
@@ -133,16 +127,16 @@ TactileForceRviz::map_sensor_vector_to_link(int finger_idx, double sx, double sy
   return {sn, sx, -sy};
 }
 
-void TactileForceRviz::callback(const control_msgs::msg::DynamicJointState::SharedPtr msg) {
+void TactileForceRviz::callback(const HandPressures::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(mutex_);
 
-  for (size_t j = 0; j < msg->joint_names.size() && j < msg->interface_values.size(); ++j) {
-    int finger_idx = finger_index_from_joint(msg->joint_names[j]);
+  for (const auto& sensor : msg->sensors) {
+    int finger_idx = finger_index_from_sensor(sensor.sensor_name);
     if (finger_idx < 0) {
       continue;
     }
 
-    auto vals = extract_pressures(msg->interface_values[j]);
+    auto vals = extract_pressures(sensor);
 
     if (!baseline_ready_) {
       accumulate_baseline(finger_idx, vals);
@@ -330,11 +324,11 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(int finger_i
   m.scale.y = head_diameter_;
   m.scale.z = head_length_;
 
-  static const std::array<std::array<float, 4>, 5> colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
-                                                              {0.2f, 1.0f, 0.2f, 1.0f},
-                                                              {0.2f, 0.4f, 1.0f, 1.0f},
-                                                              {1.0f, 0.8f, 0.2f, 1.0f},
-                                                              {0.8f, 0.2f, 1.0f, 1.0f}}};
+  static const ColorArray colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
+                                     {0.2f, 1.0f, 0.2f, 1.0f},
+                                     {0.2f, 0.4f, 1.0f, 1.0f},
+                                     {1.0f, 0.8f, 0.2f, 1.0f},
+                                     {0.8f, 0.2f, 1.0f, 1.0f}}};
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];
@@ -379,11 +373,11 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(int finger_idx
   m.scale.y = cop_marker_scale_;
   m.scale.z = cop_marker_scale_;
 
-  static const std::array<std::array<float, 4>, 5> colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
-                                                              {0.2f, 1.0f, 0.2f, 1.0f},
-                                                              {0.2f, 0.4f, 1.0f, 1.0f},
-                                                              {1.0f, 0.8f, 0.2f, 1.0f},
-                                                              {0.8f, 0.2f, 1.0f, 1.0f}}};
+  static const ColorArray colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
+                                     {0.2f, 1.0f, 0.2f, 1.0f},
+                                     {0.2f, 0.4f, 1.0f, 1.0f},
+                                     {1.0f, 0.8f, 0.2f, 1.0f},
+                                     {0.8f, 0.2f, 1.0f, 1.0f}}};
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];

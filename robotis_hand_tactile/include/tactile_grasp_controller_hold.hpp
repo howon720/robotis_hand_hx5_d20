@@ -8,7 +8,7 @@
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 
 #include "hx5d20_struct.h"
-#include "tactile_sensor_processor.hpp"
+#include "tactile_sensor.hpp"
 
 #include <array>
 #include <map>
@@ -73,7 +73,7 @@ private:
   rclcpp::Publisher<JointTrajectoryMsg>::SharedPtr traj_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
 
-  robotis_hand_tactile::TactileSensorProcessor tactile_sensor_processor_;
+  robotis_hand_tactile::TactileSensor tactile_sensor_;
 
   FingerArrayMsg fingers_{};
 

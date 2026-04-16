@@ -8,12 +8,12 @@
 
 namespace robotis_hand_tactile {
 
-class TactileSensorProcessor {
+class TactileSensor {
 public:
   using HandPressuresMsg = robotis_interfaces::msg::HandPressures;
   using HandPressuresPtr = HandPressuresMsg::SharedPtr;
 
-  TactileSensorProcessor(const rclcpp::Logger& logger, const rclcpp::Clock::SharedPtr& clock);
+  TactileSensor(const rclcpp::Logger& logger, const rclcpp::Clock::SharedPtr& clock);
 
   bool check_msg(const HandPressuresPtr msg) const;
   SensorArray parse_sensors(const HandPressuresPtr msg) const;
