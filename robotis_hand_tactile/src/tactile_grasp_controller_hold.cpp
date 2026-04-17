@@ -29,9 +29,21 @@ TactileGraspController::TactileGraspController()
   traj_pub_ =
       this->create_publisher<trajectory_msgs::msg::JointTrajectory>("/right_hand_controller/joint_trajectory", 10);
 
+  unused_finger_timer_ = this->create_wall_timer(std::chrono::milliseconds(50), [this]() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    close_unused_finger();
+    publish_traj();
+  });
+
   const auto period = std::chrono::duration<double>(1.0 / control_hz_);
   control_timer_ = this->create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
                                            std::bind(&TactileGraspController::control_loop, this));
+
+  for (auto& finger : fingers_) {
+    for (int j = 0; j < 4; ++j) {
+      finger.current_joint_targets[j] = get_open_pos(finger.joint_names[j]);
+    }
+  }
 
   RCLCPP_INFO(this->get_logger(), "TactileGraspController initialized.");
 }
@@ -88,6 +100,25 @@ void TactileGraspController::control_loop() {
   }
 }
 
+bool TactileGraspController::unused_finger(int finger_idx) const {
+  return std::find(not_use_fingers_.begin(), not_use_fingers_.end(), finger_idx) != not_use_fingers_.end();
+}
+
+void TactileGraspController::close_unused_finger() {
+  for (int i = 1; i < fingers_num; ++i) {
+    if (!unused_finger(i)) {
+      continue;
+    }
+    auto& finger = fingers_[i];
+
+    for (int j = 1; j <= 3; ++j) {
+      finger.current_joint_targets[j] += close_step_ * 3;
+      finger.current_joint_targets[j] =
+          clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
+    }
+  }
+}
+
 void TactileGraspController::handle_idle() {
   // IDLE
 }
@@ -102,6 +133,12 @@ double TactileGraspController::finger_contact_threshold(int finger_idx) const {
 void TactileGraspController::handle_close() {
   for (int i = 0; i < fingers_num; ++i) {
     auto& finger = fingers_[i];
+
+    if (unused_finger(i)) {
+      finger.contact_detected = true;
+      desired_force_[i] = 0.0;
+      continue;
+    }
 
     if (!finger.contact_detected) {
       if (i == 0) {
@@ -135,8 +172,10 @@ void TactileGraspController::handle_close() {
 
   if (all_contacted()) {
     set_desired_force();
-    state_ = State::HOLD;
-    RCLCPP_INFO(this->get_logger(), "State -> HOLD");
+    // state_ = State::HOLD;
+    // RCLCPP_INFO(this->get_logger(), "State -> HOLD");
+    state_ = State::IDLE;
+    RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
   }
 }
 

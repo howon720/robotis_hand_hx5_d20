@@ -43,11 +43,11 @@ std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shi
   target.y += delta_y;
   target.z += delta_z;
 
-  return solve_exact_constrained_ik(finger_idx, target, current_q);
+  return solve_ik(finger_idx, target, current_q);
 }
 
-std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_exact_constrained_ik(
-    int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const {
+std::optional<std::array<double, FingerPlanarIk::dof>>
+FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const {
   const double l1 = models_[finger_idx].link_lengths[0];
   const double l2 = models_[finger_idx].link_lengths[1];
   const double l3 = models_[finger_idx].link_lengths[2];

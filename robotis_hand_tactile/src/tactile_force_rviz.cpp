@@ -59,6 +59,8 @@ TactileForceRviz::TactileForceRviz() : Node("tactile_force_rviz"), baseline_coun
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic_, 10);
   force_pub_ = create_publisher<std_msgs::msg::Float32MultiArray>("/tactile_force", 10);
 
+  hand_total_pub_ = create_publisher<std_msgs::msg::Float32>("/tactile_force/hand_total", 10);
+
   auto period = std::chrono::duration<double>(1.0 / std::max(update_hz_, 1.0));
   timer_ = create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
                              std::bind(&TactileForceRviz::publish_markers, this));
@@ -391,11 +393,14 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(int finger_idx
 void TactileForceRviz::publish_markers() {
   visualization_msgs::msg::MarkerArray markers;
   std_msgs::msg::Float32MultiArray force_msg;
+  std_msgs::msg::Float32 hand_total_msg;
 
   std::lock_guard<std::mutex> lock(mutex_);
 
   // [region, angle_deg, total_force] each finger
   force_msg.data.reserve(num_fingers_ * 3);
+
+  double hand_total_force = 0.0;
 
   for (int f = 0; f < num_fingers_; ++f) {
     auto info = compute_direction_info(f, pressure_[f]);
@@ -408,10 +413,15 @@ void TactileForceRviz::publish_markers() {
     force_msg.data.push_back(static_cast<float>(info.region));
     force_msg.data.push_back(static_cast<float>(angle_deg));
     force_msg.data.push_back(static_cast<float>(info.total_force));
+
+    hand_total_force += info.total_force;
   }
+
+  hand_total_msg.data = static_cast<float>(hand_total_force);
 
   marker_pub_->publish(markers);
   force_pub_->publish(force_msg);
+  hand_total_pub_->publish(hand_total_msg);
 }
 
 int main(int argc, char** argv) {

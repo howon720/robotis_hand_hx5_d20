@@ -8,6 +8,7 @@
 
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 #include "robotis_interfaces/msg/tactile_sensor.hpp"
+#include "std_msgs/msg/float32.hpp"
 
 #include <array>
 #include <vector>
@@ -127,4 +128,6 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr force_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
+
+  rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr hand_total_pub_;
 };

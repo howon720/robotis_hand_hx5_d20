@@ -42,8 +42,8 @@ private:
   double ema_alpha_{0.2}; // 이전 센서값 비례
   int baseline_sample_count_{30};
 
-  double x_center_threshold_{0.5};  // top down    : 70 almost ignore    best : 60
-  double y_center_threshold_{0.25}; // dead-zone(0~1)    : org 0.35
+  double x_center_threshold_{0.5}; // top down    : 70 almost ignore    best : 60
+  double y_center_threshold_{0.2}; // dead-zone(0~1)    : org 0.35
 
   double min_force_for_correction_{10.0};
   double cost_threshold_{0.1};

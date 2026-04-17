@@ -33,7 +33,7 @@ public:
 
 private:
   std::optional<std::array<double, dof>>
-  solve_exact_constrained_ik(int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const;
+  solve_ik(int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const;
 
   std::array<FingerModel, fingers_num> models_;
 };

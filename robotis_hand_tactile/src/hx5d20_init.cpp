@@ -55,13 +55,36 @@ std::vector<std::string> init_joint_names() {
 
 std::vector<double> init_positions() {
   return {   // 1.0
-    0.297, -1.792, 0.0, 0.0,     // org
-    // 0.12, -1.68, 0.0, 0.0,     // tennis
+    // 0.297, -1.792, 0.0, 0.0,     // org
+    0.12, -1.68, 0.0, 0.0,     // tennis 3pinch
     0.0,    0.8,   0.0, 0.0,
     0.0,    0.8,   0.0, 0.0,
     0.0,    0.8,   0.0, 0.0,
     0.0,    0.8,   0.0, 0.0
   };
+
+
+  // // 작은 과일 들 , maxim
+  // std::vector<double> init_positions() {
+  // return {   // 1.0
+  //   0.297, -1.792, 0.3, - 0.2,
+  //   0.0,    1.2,   0.0, 0.0,
+  //   0.0,    1.2,   0.0, 0.0,
+  //   0.0,    1.2,   0.0, 0.0,
+  //   0.0,    1.2,   0.0, 0.0
+  // };
+
+  // //hold_pinch
+  // std::vector<double> init_positions() {
+  // return {   // 1.0
+  //   0.0, -1.57, 0.0, 0.0,     // org
+  //   0.0,    1.0,   0.0, 0.0,
+  //   0.0,    1.5,   0.0, 0.0,
+  //   0.0,    1.5,   0.0, 0.0,
+  //   0.0,    1.5,   0.0, 0.0
+  // };
+
+
 } // clang-format on
 
 } // namespace robotis_hand_tactile
