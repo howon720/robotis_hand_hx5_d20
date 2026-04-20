@@ -46,6 +46,22 @@ std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shi
   return solve_ik(finger_idx, target, current_q);
 }
 
+std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shift_local(
+    int finger_idx, const std::array<double, dof>& current_q, double local_dy, double local_dz) const {
+  const Pose2D current_pose = fk(finger_idx, current_q);
+
+  // fingertip local frame -> base yz plane
+  const double c = std::cos(current_pose.theta);
+  const double s = std::sin(current_pose.theta);
+
+  Pose2D target = current_pose;
+
+  target.y += c * local_dy + s * local_dz;
+  target.z += -s * local_dy + c * local_dz;
+
+  return solve_ik(finger_idx, target, current_q);
+}
+
 std::optional<std::array<double, FingerPlanarIk::dof>>
 FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const {
   const double l1 = models_[finger_idx].link_lengths[0];

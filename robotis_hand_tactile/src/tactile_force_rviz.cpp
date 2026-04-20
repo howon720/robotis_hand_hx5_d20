@@ -326,11 +326,11 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(int finger_i
   m.scale.y = head_diameter_;
   m.scale.z = head_length_;
 
-  static const ColorArray colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
-                                     {0.2f, 1.0f, 0.2f, 1.0f},
-                                     {0.2f, 0.4f, 1.0f, 1.0f},
-                                     {1.0f, 0.8f, 0.2f, 1.0f},
-                                     {0.8f, 0.2f, 1.0f, 1.0f}}};
+  static const ColorArray colors = {{{1.0f, 0.2f, 0.2f, 1.0f},   // 빨
+                                     {1.0f, 0.55f, 0.0f, 1.0f},  // 주
+                                     {0.95f, 0.75f, 0.1f, 1.0f}, // 노
+                                     {0.2f, 0.9f, 0.2f, 1.0f},   // 초
+                                     {0.2f, 0.4f, 1.0f, 1.0f}}}; // 파
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];
@@ -375,11 +375,11 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(int finger_idx
   m.scale.y = cop_marker_scale_;
   m.scale.z = cop_marker_scale_;
 
-  static const ColorArray colors = {{{1.0f, 0.2f, 0.2f, 1.0f},
-                                     {0.2f, 1.0f, 0.2f, 1.0f},
-                                     {0.2f, 0.4f, 1.0f, 1.0f},
-                                     {1.0f, 0.8f, 0.2f, 1.0f},
-                                     {0.8f, 0.2f, 1.0f, 1.0f}}};
+  static const ColorArray colors = {{{1.0f, 0.2f, 0.2f, 1.0f},   // 빨
+                                     {1.0f, 0.55f, 0.0f, 1.0f},  // 주
+                                     {0.95f, 0.75f, 0.1f, 1.0f}, // 노
+                                     {0.2f, 0.9f, 0.2f, 1.0f},   // 초
+                                     {0.2f, 0.4f, 1.0f, 1.0f}}}; // 파
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];

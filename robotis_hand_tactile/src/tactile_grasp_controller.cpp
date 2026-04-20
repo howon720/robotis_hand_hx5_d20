@@ -368,10 +368,12 @@ bool TactileGraspController::correction_ik(int finger_idx, bool forward_y) {
 
   const int solver_idx = finger_idx - 1; // index=1 -> 0, ..., little=4 -> 3
   const auto current_q = get_planar_q(finger_idx);
-  const double delta_y = forward_y ? 0.001 : -0.001; // 1mm * scale
-  const double delta_z = forward_y ? -0.001 : -0.001;
 
-  const auto maybe_q = finger_planar_ik_->solve_shift_yz(solver_idx, current_q, delta_y, delta_z);
+  // fingertip local +z / -z
+  const double local_dy = 0.0;
+  const double local_dz = forward_y ? 0.001 : -0.001; // 1mm * scale
+  const auto maybe_q = finger_planar_ik_->solve_shift_local(solver_idx, current_q, local_dy, local_dz);
+
   if (!maybe_q.has_value()) {
     x_ik_failed_[finger_idx] = true;
     RCLCPP_WARN(this->get_logger(), "[%s] planar IK failed", fingers_[finger_idx].name.c_str());

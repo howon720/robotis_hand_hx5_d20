@@ -103,9 +103,9 @@ private:
 
   double close_step_{0.03};
   double contact_threshold_{20.0};  // org : 10.0    //pinch : 3.0
-  double thumb_contact_ratio_{1.0}; // org : 2.8     // pinch : 1.0
+  double thumb_contact_ratio_{2.0}; // org : 2.8     // pinch : 1.0
 
-  double reactive_force_scale_{2.0}; // org : 1.0
+  double reactive_force_scale_{1.0}; // org : 1.0
 
   double deadband_L{-5.0}; // 오차 : 손떨림 보정
   double deadband_H{5.0};
@@ -113,7 +113,7 @@ private:
   double reactive_step_{0.01};
 
   // thumb: 0, index: 1, middle: 2, ring: 3, little: 4
-  std::vector<int> not_use_fingers_{};
+  std::vector<int> not_use_fingers_{3, 4};
 };
 
 } // namespace robotis_hand_tactile_hold

@@ -31,6 +31,9 @@ public:
   std::optional<std::array<double, dof>>
   solve_shift_yz(int finger_idx, const std::array<double, dof>& current_q, double delta_y, double delta_z) const;
 
+  std::optional<std::array<double, dof>>
+  solve_shift_local(int finger_idx, const std::array<double, dof>& current_q, double local_dy, double local_dz) const;
+
 private:
   std::optional<std::array<double, dof>>
   solve_ik(int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const;

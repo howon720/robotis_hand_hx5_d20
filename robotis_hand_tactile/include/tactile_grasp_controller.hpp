@@ -131,7 +131,7 @@ protected:
                                     // 과일 : 1.5
 
   // thumb: 0, index: 1, middle: 2, ring: 3, little: 4
-  std::vector<int> not_use_fingers_{3, 4};
+  std::vector<int> not_use_fingers_{};
   std::array<bool, fingers_num> x_ik_failed_{false, false, false, false, false};
 };
 

@@ -142,7 +142,7 @@ void TactileGraspController::handle_close() {
 
     if (!finger.contact_detected) {
       if (i == 0) {
-        const std::array<double, 4> weights = {0.5, 0.5, 0.5, 0.5};
+        const std::array<double, 4> weights = {0.5, 0.5, 0.5, 0.5}; // 여기
         // thumb : joint3, joint4
         for (int j = 2; j <= 3; ++j) {
           finger.current_joint_targets[j] += close_step_ * weights[j];
@@ -172,10 +172,10 @@ void TactileGraspController::handle_close() {
 
   if (all_contacted()) {
     set_desired_force();
-    // state_ = State::HOLD;
-    // RCLCPP_INFO(this->get_logger(), "State -> HOLD");
-    state_ = State::IDLE;
-    RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
+    state_ = State::HOLD;
+    RCLCPP_INFO(this->get_logger(), "State -> HOLD");
+    // state_ = State::IDLE;
+    // RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
   }
 }
 
@@ -195,7 +195,7 @@ void TactileGraspController::handle_hold() {
     if (i == 0) {
       // thumb : joint3, joint4
       const std::array<int, 2> joints = {2, 3};
-      const std::array<double, 2> weights = {0.5, 0.5};
+      const std::array<double, 2> weights = {0.7, 0.3};
 
       for (int k = 0; k < 2; ++k) {
         const int j = joints[k];
