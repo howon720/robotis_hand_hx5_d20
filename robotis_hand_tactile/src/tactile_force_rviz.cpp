@@ -332,6 +332,12 @@ visualization_msgs::msg::Marker TactileForceRviz::make_arrow_marker(int finger_i
                                      {0.2f, 0.9f, 0.2f, 1.0f},   // 초
                                      {0.2f, 0.4f, 1.0f, 1.0f}}}; // 파
 
+  // static const ColorArray colors = {{{0.95f, 0.75f, 0.1f, 1.0f},   // 빨
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f},   // 주
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f},   // 노
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f},   // 초
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f}}}; // 파
+
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];
   m.color.g = c[1];
@@ -357,7 +363,7 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(int finger_idx
   m.action = visualization_msgs::msg::Marker::ADD;
   m.frame_locked = true;
 
-  if (info.total_force <= 1e-6) {
+  if (info.total_force <= 3.0) {
     m.scale.x = 0.001;
     m.scale.y = 0.001;
     m.scale.z = 0.001;
@@ -380,6 +386,12 @@ visualization_msgs::msg::Marker TactileForceRviz::make_cop_marker(int finger_idx
                                      {0.95f, 0.75f, 0.1f, 1.0f}, // 노
                                      {0.2f, 0.9f, 0.2f, 1.0f},   // 초
                                      {0.2f, 0.4f, 1.0f, 1.0f}}}; // 파
+
+  // static const ColorArray colors = {{{0.95f, 0.75f, 0.1f, 1.0f},   // 빨
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f},   // 주
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f},   // 노
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f},   // 초
+  //                                    {0.95f, 0.75f, 0.1f, 1.0f}}}; // 파
 
   const auto& c = colors[finger_idx % colors.size()];
   m.color.r = c[0];

@@ -26,7 +26,8 @@ set(ROS2_PACKAGES
     trajectory_msgs
     robotis_interfaces)
 
-add_executable(tactile_force_rviz src/tactile_force_rviz.cpp)
+add_executable(tactile_force_rviz 
+              src/tactile_force_rviz.cpp)
 target_include_directories(tactile_force_rviz PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -60,7 +61,7 @@ install(TARGETS tactile_grasp_controller_hold
         DESTINATION lib/${PROJECT_NAME})
 
 install(PROGRAMS
-  scripts/finger_pressure.py
+  scripts/visualize_tactile.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

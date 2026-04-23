@@ -2,7 +2,6 @@
 from __future__ import annotations
 import threading
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -12,11 +11,12 @@ from rclpy.qos import (
     QoSProfile,
     ReliabilityPolicy,
 )
-from control_msgs.msg import DynamicJointState
+from robotis_interfaces.msg import HandPressures
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.colors import LinearSegmentedColormap
 
 # =========================
 # Config
@@ -27,7 +27,6 @@ class VizConfig:
     sensor_prefix: str
     num_fingers: int
     num_taxels: int
-    iface_prefix: str
     update_hz: float
     use_best_effort: bool
 
@@ -39,8 +38,8 @@ class VizConfig:
 
     # Visualization
     viz_gain: float
-    z_fixed_max: float
-    z_tick_interval: int
+    color_max: float
+
 
 def _make_qos(best_effort: bool) -> QoSProfile:
     if best_effort:
@@ -57,11 +56,8 @@ def _make_qos(best_effort: bool) -> QoSProfile:
         durability=DurabilityPolicy.VOLATILE,
     )
 
-def _grid3x3_xy(dx: float = 0.8, dy: float = 0.8) -> Tuple[np.ndarray, np.ndarray, float, float]:
-    """Return (x, y) coordinates for 3×3 bars, flattened."""
-    xs, ys = np.meshgrid(np.arange(3), np.arange(3), indexing="xy")  # col, row
-    return xs.ravel(), ys.ravel(), dx, dy
 
+# =========================
 # Node
 # =========================
 class PressureViz(Node):
@@ -72,7 +68,7 @@ class PressureViz(Node):
 
         if self.cfg.num_taxels != 9:
             self.get_logger().warn(
-                f"num_taxels={self.cfg.num_taxels}. This visualizer assumes 9 taxels (3×3)."
+                f"num_taxels={self.cfg.num_taxels}. This visualizer assumes 9 taxels (3x3)."
             )
 
         self._lock = threading.Lock()
@@ -86,15 +82,15 @@ class PressureViz(Node):
         self._baseline_ready = False
         self._baseline_frames = max(1, int(self.cfg.update_hz * self.cfg.baseline_seconds))
 
-        # --- ROS subscription ---
         qos = _make_qos(self.cfg.use_best_effort)
-        self.sub = self.create_subscription(DynamicJointState, self.cfg.topic, self._cb, qos)
+        self.sub = self.create_subscription(HandPressures, self.cfg.topic, self._cb, qos)
 
-        log_msg = (
-            f"Subscribing: {self.cfg.topic} | baseline {self.cfg.baseline_seconds:.2f}s (~{self._baseline_frames} frames) | "
-            f"gain={self.cfg.viz_gain:.2f} | z=[0,{self.cfg.z_fixed_max:.0f}] tick={self.cfg.z_tick_interval}"
+        self.get_logger().info(
+            f"Subscribing: {self.cfg.topic} | baseline {self.cfg.baseline_seconds:.2f}s "
+            f"(~{self._baseline_frames} frames) | gain={self.cfg.viz_gain:.2f} | "
+            f"color_max={self.cfg.color_max:.2f}"
         )
-        self.get_logger().info(log_msg)
+
         self._setup_figure()
 
         interval_ms = int(1000.0 / max(self.cfg.update_hz, 1.0))
@@ -104,11 +100,10 @@ class PressureViz(Node):
     # Params
     # -------------------------
     def _declare_and_read_params(self) -> VizConfig:
-        self.declare_parameter("topic", "/dynamic_joint_states")
+        self.declare_parameter("topic", "/right_hand/finger_pressures")
         self.declare_parameter("sensor_prefix", "finger_r_sensor")
         self.declare_parameter("num_fingers", 5)
         self.declare_parameter("num_taxels", 9)
-        self.declare_parameter("pressure_iface_prefix", "Present Pressure")
         self.declare_parameter("update_hz", 20.0)
         self.declare_parameter("use_best_effort", True)
 
@@ -117,17 +112,14 @@ class PressureViz(Node):
         self.declare_parameter("deadband", 1.0)
         self.declare_parameter("clip_negative", True)
 
-        self.declare_parameter("viz_gain", 10.0)
-
-        self.declare_parameter("z_fixed_max", 2500.0)
-        self.declare_parameter("z_tick_interval", 500)
+        self.declare_parameter("viz_gain", 1.5)
+        self.declare_parameter("color_max", 125.0)
 
         return VizConfig(
             topic=str(self.get_parameter("topic").value),
             sensor_prefix=str(self.get_parameter("sensor_prefix").value),
             num_fingers=int(self.get_parameter("num_fingers").value),
             num_taxels=int(self.get_parameter("num_taxels").value),
-            iface_prefix=str(self.get_parameter("pressure_iface_prefix").value),
             update_hz=float(self.get_parameter("update_hz").value),
             use_best_effort=bool(self.get_parameter("use_best_effort").value),
             baseline_seconds=float(self.get_parameter("baseline_seconds").value),
@@ -135,69 +127,71 @@ class PressureViz(Node):
             deadband=float(self.get_parameter("deadband").value),
             clip_negative=bool(self.get_parameter("clip_negative").value),
             viz_gain=float(self.get_parameter("viz_gain").value),
-            z_fixed_max=float(self.get_parameter("z_fixed_max").value),
-            z_tick_interval=int(self.get_parameter("z_tick_interval").value),
+            color_max=float(self.get_parameter("color_max").value),
         )
+
+    # -------------------------
+    # Message parsing
+    # -------------------------
+    def _finger_index_from_sensor_name(self, sensor_name: str) -> int | None:
+        if not sensor_name.startswith(self.cfg.sensor_prefix):
+            return None
+
+        suffix = sensor_name[len(self.cfg.sensor_prefix):]
+        if not suffix.isdigit():
+            return None
+
+        idx = int(suffix) - 1
+        return idx if 0 <= idx < self.cfg.num_fingers else None
+
+    def _sensor_to_array(self, sensor_msg) -> np.ndarray:
+        values = np.array(sensor_msg.pressure_values, dtype=float)
+
+        if values.size < self.cfg.num_taxels:
+            out = np.zeros(self.cfg.num_taxels, dtype=float)
+            out[:values.size] = values
+            return out
+
+        return values[:self.cfg.num_taxels]
 
     # -------------------------
     # ROS callback / processing
     # -------------------------
-    @staticmethod
-    def _iface_map(iv) -> Dict[str, float]:
-        return {n: float(v) for n, v in zip(iv.interface_names, iv.values)}
-
-    def _finger_index_from_joint(self, joint_name: str) -> int | None:
-        if not joint_name.startswith(self.cfg.sensor_prefix):
-            return None
-        suffix = joint_name[len(self.cfg.sensor_prefix) :]
-        if not suffix.isdigit():
-            return None
-        idx = int(suffix) - 1
-        return idx if 0 <= idx < self.cfg.num_fingers else None
-
-    def _cb(self, msg: DynamicJointState) -> None:
+    def _cb(self, msg: HandPressures) -> None:
         with self._lock:
-            for j, joint_name in enumerate(msg.joint_names):
-                finger_idx = self._finger_index_from_joint(joint_name)
+            for sensor in msg.sensors:
+                finger_idx = self._finger_index_from_sensor_name(sensor.sensor_name)
                 if finger_idx is None:
                     continue
 
-                iface = self._iface_map(msg.interface_values[j])
+                values = self._sensor_to_array(sensor)
 
                 if not self._baseline_ready:
-                    self._accumulate_baseline(finger_idx, iface)
+                    self._accumulate_baseline(finger_idx, values)
                 else:
-                    self._update_pressure(finger_idx, iface)
+                    self._update_pressure(finger_idx, values)
 
             if not self._baseline_ready:
                 self._baseline_count += 1
                 if self._baseline_count >= self._baseline_frames:
                     self._finalize_baseline()
 
-    def _accumulate_baseline(self, finger_idx: int, iface: Dict[str, float]) -> None:
-        for t in range(1, self.cfg.num_taxels + 1):
-            key = f"{self.cfg.iface_prefix} {t}"
-            val = iface.get(key)
-            if val is not None:
-                self._baseline_sum[finger_idx, t - 1] += val
+    def _accumulate_baseline(self, finger_idx: int, values: np.ndarray) -> None:
+        self._baseline_sum[finger_idx, :] += values
 
-    def _update_pressure(self, finger_idx: int, iface: Dict[str, float]) -> None:
-        for t in range(1, self.cfg.num_taxels + 1):
-            key = f"{self.cfg.iface_prefix} {t}"
-            raw = iface.get(key)
-            if raw is None:
-                continue
-
-            val = raw - self._baseline[finger_idx, t - 1]
+    def _update_pressure(self, finger_idx: int, values: np.ndarray) -> None:
+        for t in range(self.cfg.num_taxels):
+            val = values[t] - self._baseline[finger_idx, t]
 
             if self.cfg.clip_negative and val < 0.0:
                 val = 0.0
             if val < self.cfg.deadband:
                 val = 0.0
 
-            prev = self._ema[finger_idx, t - 1]
-            self._ema[finger_idx, t - 1] = (1.0 - self.cfg.ema_alpha) * prev + self.cfg.ema_alpha * val
-            self._pressure[finger_idx, t - 1] = self._ema[finger_idx, t - 1]
+            prev = self._ema[finger_idx, t]
+            filt = (1.0 - self.cfg.ema_alpha) * prev + self.cfg.ema_alpha * val
+            self._ema[finger_idx, t] = filt
+            self._pressure[finger_idx, t] = filt
 
     def _finalize_baseline(self) -> None:
         self._baseline = self._baseline_sum / float(self._baseline_count)
@@ -210,18 +204,75 @@ class PressureViz(Node):
     # Plotting
     # -------------------------
     def _setup_figure(self) -> None:
-        self.fig = plt.figure(figsize=(20, 4))
-        gs = self.fig.add_gridspec(1, self.cfg.num_fingers)
+        # self.fig, self.axes = plt.subplots(1, self.cfg.num_fingers, figsize=(6, 1.8))
+        self.fig, self.axes = plt.subplots(self.cfg.num_fingers, 1, figsize=(1, 4))
+        if self.cfg.num_fingers == 1:
+            self.axes = [self.axes]
 
-        self.axes = [self.fig.add_subplot(gs[0, i], projection="3d") for i in range(self.cfg.num_fingers)]
+        self.fig.canvas.manager.set_window_title("Finger Pressure")
+        self.fig.patch.set_facecolor("#d9d9d9")
+        self.fig.suptitle("SENSOR", x=0.055, y=0.99, ha="left", fontsize=9, fontweight="bold")
 
-        self._grid_x, self._grid_y, self._dx, self._dy = _grid3x3_xy(dx=0.8, dy=0.8)
-        self._z_top = self.cfg.z_fixed_max
-        self._z_ticks = np.arange(0, int(self._z_top) + 1, self.cfg.z_tick_interval, dtype=int)
+        # thumb, index, middle, ring, little
+        base_colors = [
+            "#ff3b30",  # red
+            "#ff9500",  # orange
+            "#ffd60a",  # yellow
+            "#34c759",  # green
+            "#007aff",  # blue
+        ]
+
+        finger_labels = ["thumb", "index", "middle", "ring", "little"]
+
+        self.finger_cmaps = []
+        for color in base_colors[:self.cfg.num_fingers]:
+            cmap = LinearSegmentedColormap.from_list(
+                f"finger_cmap_{color}",
+                [
+                    "#0b0b0b",
+                    color,
+                ],
+            )
+            self.finger_cmaps.append(cmap)
+
+        self.images = []
+
+        for i, ax in enumerate(self.axes):
+            display_idx = self.cfg.num_fingers - 1 - i
+            ax.set_facecolor("white")
+            img = ax.imshow(
+                np.zeros((3, 3)),
+                cmap=self.finger_cmaps[i],
+                vmin=0.0,
+                vmax=self.cfg.color_max,
+                interpolation="nearest",
+                origin="upper",
+                aspect="auto",
+            )
+            self.images.append(img)
+
+            ax.text(
+                0.5, -0.05, finger_labels[i],
+                transform=ax.transAxes,
+                ha="center",
+                va="top",
+                fontsize=12,
+            )
+
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            for k in range(4):
+                ax.axhline(k - 0.5, color="#1f1f1f", linewidth=1.2)
+                ax.axvline(k - 0.5, color="#1f1f1f", linewidth=1.2)
+
+            for spine in ax.spines.values():
+                spine.set_edgecolor("#555555")
+                spine.set_linewidth(1.0)
+        self.fig.subplots_adjust(left=0.18, right=0.82, top=0.96, bottom=0.03, hspace=0.18)
 
     @staticmethod
     def _taxels_to_3x3(taxels: np.ndarray) -> np.ndarray:
-        """taxel 1..9 -> 3x3 row-major."""
         if taxels.size != 9:
             out = np.zeros((3, 3), dtype=float)
             n = min(taxels.size, 9)
@@ -229,49 +280,20 @@ class PressureViz(Node):
             return out
         return taxels.reshape(3, 3)
 
-    def _style_axis(self, ax, finger_idx: int) -> None:
-        ax.set_title(f"Finger {finger_idx + 1}")
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-        ax.set_zlabel("Pressure")
-
-        ax.set_xlim(-0.2, 2.8)
-        ax.set_ylim(-0.2, 2.8)
-        ax.set_zlim(0.0, self._z_top)
-
-        ax.set_xticks([0, 1, 2])
-        ax.set_xticklabels(["1", "2", "3"])
-        ax.set_yticks([0, 1, 2])
-        ax.set_yticklabels(["1", "2", "3"])
-        ax.set_zticks(self._z_ticks)
-
-        ax.invert_yaxis()
-        ax.tick_params(axis="x", which="both", labelbottom=False)
-        ax.tick_params(axis="y", which="both", labelleft=False)
-
     def _update_plot(self, _frame) -> None:
         with self._lock:
             data = self._pressure.copy()
 
         data_viz = data * self.cfg.viz_gain
+        data_viz = np.sqrt(np.clip(data_viz, 0.0, None)) * 8.0
 
-        for f, ax in enumerate(self.axes):
-            ax.cla()
+        for i, img in enumerate(self.images):
+            grid = self._taxels_to_3x3(data_viz[i, :])
+            grid = np.clip(grid, 0.0, self.cfg.color_max)
+            img.set_data(grid)
 
-            grid = self._taxels_to_3x3(data_viz[f, :])
-            dz = np.clip(grid.ravel(), 0.0, self._z_top)
+        return self.images
 
-            self._style_axis(ax, f)
-            ax.bar3d(
-                self._grid_x,
-                self._grid_y,
-                np.zeros_like(self._grid_x, dtype=float),
-                self._dx,
-                self._dy,
-                dz,
-                shade=True,
-            )
-        self.fig.subplots_adjust(wspace=0.25)
 
 def main() -> None:
     rclpy.init()

@@ -75,8 +75,9 @@ class KeyboardController(Node):
         ]
 
         # For Release
-        self.initial_positions = [
-            1.57, -1.57, 0.0, 0.0,# 1~4
+        self.initial_positions = [       
+            1.57, -1.57, 0.0, 0.0,# 1~4    # 촬영 1.57 -1.57       0.0, 0.017, 0.663, 0.873
+            # 0.0, 0.017, 0.663, 0.873,
             0.0, 0.0, 0.0, 0.0,   # 5~8
             0.0, 0.0, 0.0, 0.0,   # 9~12
             0.0, 0.0, 0.0, 0.0,   # 13~16
@@ -260,8 +261,9 @@ class KeyboardController(Node):
 
         self.target_positions = self.initial_positions.copy()
 
-        self.set_grasping()  # grasping test 용
+        self.set_grasping()  # grasping test 용       촬영 주석함
         self.set_joint2()
+        
         # self.set_joint_tennisball()
         # self.set_joint_papercup()
         self.publish_trajectory()

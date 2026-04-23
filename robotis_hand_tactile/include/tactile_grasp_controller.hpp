@@ -105,7 +105,6 @@ protected:
   double trajectory_dt_{0.05};
 
   double close_step_{0.01};
-  // cylinder_tape : 70(50) , dynamixel_box : 40 , tennisball : 30  , papercup : 10
   double contact_threshold_{30}; // threshold   use : 30
 
   // force control
@@ -126,7 +125,7 @@ protected:
 
   // specific
   double thumb_contact_ratio_{2.0}; // thumb contact = other finger threshold 2x
-  double regrasp_force_ratio_{1.2}; // 재그립 완료 기준 = 평소 threshold의 1.5배
+  double regrasp_force_ratio_{3.0}; // 재그립 완료 기준 = 평소 threshold의 1.5배
                                     // 무거운 애들 : 4.0
                                     // 과일 : 1.5
 

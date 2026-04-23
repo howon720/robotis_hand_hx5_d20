@@ -112,8 +112,8 @@ class PressureViz(Node):
         self.declare_parameter("deadband", 1.0)
         self.declare_parameter("clip_negative", True)
 
-        self.declare_parameter("viz_gain", 1.0)
-        self.declare_parameter("color_max", 255.0)
+        self.declare_parameter("viz_gain", 1.5)
+        self.declare_parameter("color_max", 125.0)
 
         return VizConfig(
             topic=str(self.get_parameter("topic").value),
@@ -204,12 +204,14 @@ class PressureViz(Node):
     # Plotting
     # -------------------------
     def _setup_figure(self) -> None:
-        self.fig, self.axes = plt.subplots(1, self.cfg.num_fingers, figsize=(10, 3.0))
+        # self.fig, self.axes = plt.subplots(1, self.cfg.num_fingers, figsize=(6, 1.8))
+        self.fig, self.axes = plt.subplots(self.cfg.num_fingers, 1, figsize=(1, 4))
         if self.cfg.num_fingers == 1:
             self.axes = [self.axes]
 
+        self.fig.canvas.manager.set_window_title("Finger Pressure")
         self.fig.patch.set_facecolor("#d9d9d9")
-        self.fig.suptitle("SENSOR", x=0.055, y=0.95, ha="left", fontsize=12, fontweight="bold")
+        self.fig.suptitle("SENSOR", x=0.055, y=0.99, ha="left", fontsize=9, fontweight="bold")
 
         # thumb, index, middle, ring, little
         base_colors = [
@@ -236,6 +238,7 @@ class PressureViz(Node):
         self.images = []
 
         for i, ax in enumerate(self.axes):
+            display_idx = self.cfg.num_fingers - 1 - i
             ax.set_facecolor("white")
             img = ax.imshow(
                 np.zeros((3, 3)),
@@ -248,19 +251,25 @@ class PressureViz(Node):
             )
             self.images.append(img)
 
-            finger_labels = ["thumb", "index", "middle", "ring", "little"]
-            ax.set_title(finger_labels[i], fontsize=12, pad=8)
-            ax.set_xticks(np.arange(-0.5, 3, 1), minor=True)
-            ax.set_yticks(np.arange(-0.5, 3, 1), minor=True)
-            ax.grid(which="minor", color="#1f1f1f", linestyle="-", linewidth=1.2)
+            ax.text(
+                0.5, -0.05, finger_labels[i],
+                transform=ax.transAxes,
+                ha="center",
+                va="top",
+                fontsize=12,
+            )
 
-            ax.tick_params(which="both", bottom=False, left=False, labelbottom=False, labelleft=False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            for k in range(4):
+                ax.axhline(k - 0.5, color="#1f1f1f", linewidth=1.2)
+                ax.axvline(k - 0.5, color="#1f1f1f", linewidth=1.2)
 
             for spine in ax.spines.values():
                 spine.set_edgecolor("#555555")
                 spine.set_linewidth(1.0)
-
-        self.fig.subplots_adjust(left=0.06, right=0.94, top=0.75, bottom=0.08, wspace=0.35)
+        self.fig.subplots_adjust(left=0.18, right=0.82, top=0.96, bottom=0.03, hspace=0.18)
 
     @staticmethod
     def _taxels_to_3x3(taxels: np.ndarray) -> np.ndarray:
@@ -276,9 +285,10 @@ class PressureViz(Node):
             data = self._pressure.copy()
 
         data_viz = data * self.cfg.viz_gain
+        data_viz = np.sqrt(np.clip(data_viz, 0.0, None)) * 8.0
 
-        for f, img in enumerate(self.images):
-            grid = self._taxels_to_3x3(data_viz[f, :])
+        for i, img in enumerate(self.images):
+            grid = self._taxels_to_3x3(data_viz[i, :])
             grid = np.clip(grid, 0.0, self.cfg.color_max)
             img.set_data(grid)
 
