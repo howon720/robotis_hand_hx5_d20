@@ -14,6 +14,7 @@ from rclpy.qos import (
 from robotis_interfaces.msg import HandPressures
 import matplotlib
 matplotlib.use("TkAgg")
+matplotlib.rcParams["toolbar"] = "None"
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import LinearSegmentedColormap
@@ -205,7 +206,7 @@ class PressureViz(Node):
     # -------------------------
     def _setup_figure(self) -> None:
         # self.fig, self.axes = plt.subplots(1, self.cfg.num_fingers, figsize=(6, 1.8))
-        self.fig, self.axes = plt.subplots(self.cfg.num_fingers, 1, figsize=(1, 4))
+        self.fig, self.axes = plt.subplots(self.cfg.num_fingers, 1, figsize=(2, 7.5))
         if self.cfg.num_fingers == 1:
             self.axes = [self.axes]
 

@@ -35,7 +35,6 @@ TactileGraspController::TactileGraspController(const std::string& node_name) : N
     }
   }
 }
-
 TactileGraspController::~TactileGraspController() = default;
 
 void TactileGraspController::handle_idle() {
@@ -43,7 +42,7 @@ void TactileGraspController::handle_idle() {
 }
 
 bool TactileGraspController::unused_finger(int finger_idx) const {
-  return std::find(not_use_fingers_.begin(), not_use_fingers_.end(), finger_idx) != not_use_fingers_.end();
+  return std::find(param.un_use_finger.begin(), param.un_use_finger.end(), finger_idx) != param.un_use_finger.end();
 }
 
 void TactileGraspController::close_unused_finger() {
@@ -54,7 +53,7 @@ void TactileGraspController::close_unused_finger() {
     auto& finger = fingers_[i];
 
     for (int j = 1; j <= 3; ++j) {
-      finger.current_joint_targets[j] += close_step_ * 3;
+      finger.current_joint_targets[j] += param.close_step * 3;
       finger.current_joint_targets[j] =
           clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
     }
@@ -63,9 +62,9 @@ void TactileGraspController::close_unused_finger() {
 
 double TactileGraspController::finger_contact_threshold(int finger_idx) const {
   if (finger_idx == 0) {
-    return contact_threshold_ * thumb_contact_ratio_;
+    return param.contact_threshold * param.thumb_contact_ratio;
   }
-  return contact_threshold_;
+  return param.contact_threshold;
 }
 
 void TactileGraspController::handle_close() {
@@ -82,7 +81,7 @@ void TactileGraspController::handle_close() {
       // thumb
       if (i == 0) {
         for (int j = 2; j <= 3; ++j) {
-          finger.current_joint_targets[j] += close_step_;
+          finger.current_joint_targets[j] += param.close_step;
           finger.current_joint_targets[j] =
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
@@ -90,7 +89,7 @@ void TactileGraspController::handle_close() {
       // other
       else {
         for (int j = 1; j <= 3; ++j) {
-          finger.current_joint_targets[j] += close_step_;
+          finger.current_joint_targets[j] += param.close_step;
           finger.current_joint_targets[j] =
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
@@ -129,7 +128,7 @@ void TactileGraspController::regulate_grasp_force(int finger_idx) {
   }
 
   double dq = force_kp_ * error;
-  dq = clamp(dq, -feedback_max_delta_, feedback_max_delta_);
+  dq = clamp(dq, -param.feedback_max_delta, param.feedback_max_delta);
 
   const double scale = finger_step_scale(finger_idx);
   dq *= scale;
@@ -190,7 +189,7 @@ void TactileGraspController::handle_hold() {
     }
 
     if (hold_correction_stage_ == HoldCorrectionStage::X_SECOND) {
-      if (fingers_[i].filtered_force < regrasp_force_ratio_ * finger_contact_threshold(i)) {
+      if (fingers_[i].filtered_force < param.regrasp_force * finger_contact_threshold(i)) {
         grasp_step_hold(i, regrasp_step_);
         continue;
       }
@@ -336,7 +335,7 @@ bool TactileGraspController::all_finger_contacted() const {
     if (unused_finger(i)) {
       continue;
     }
-    if (fingers_[i].filtered_force < regrasp_force_ratio_ * finger_contact_threshold(i)) {
+    if (fingers_[i].filtered_force < param.regrasp_force * finger_contact_threshold(i)) {
       return false;
     }
   }

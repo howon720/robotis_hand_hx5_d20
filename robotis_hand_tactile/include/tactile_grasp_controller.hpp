@@ -4,6 +4,7 @@
 #include "hx5d20_struct.h"
 #include "hx5d20_init.hpp"
 #include "finger_ik_solver.hpp"
+#include "param.h"
 
 #include <array>
 #include <map>
@@ -83,6 +84,7 @@ protected:
 
 protected:
   friend class TactileCorrectionPlanner;
+  robotis_hand_tactile::Params param;
 
   std::unique_ptr<FingerPlanarIk> finger_planar_ik_;
   std::unique_ptr<TactileCorrectionPlanner> correction_planner_;
@@ -100,18 +102,10 @@ protected:
 
   bool joint_received_{false};
 
-  // control timing
-  double control_hz_{20.0}; // handle_hold rate   50ms 0.05sec
-  double trajectory_dt_{0.05};
-
-  double close_step_{0.01};
-  double contact_threshold_{30}; // threshold   use : 30
-
   // force control
   double force_kp_{0.002}; // force error 값 계수
   double deadband_L{5.0};  // 손떨림방지 : 이거 없어도 되는지 확인
   double deadband_H{5.0};
-  double feedback_max_delta_{0.01}; // feedback max step
 
   // correction
   int phase_step_{4};
@@ -123,14 +117,6 @@ protected:
   double min_step_scale_{0.3};
   double max_step_scale_{1.0};
 
-  // specific
-  double thumb_contact_ratio_{2.0}; // thumb contact = other finger threshold 2x
-  double regrasp_force_ratio_{3.0}; // 재그립 완료 기준 = 평소 threshold의 1.5배
-                                    // 무거운 애들 : 4.0
-                                    // 과일 : 1.5
-
-  // thumb: 0, index: 1, middle: 2, ring: 3, little: 4
-  std::vector<int> not_use_fingers_{};
   std::array<bool, fingers_num> x_ik_failed_{false, false, false, false, false};
 };
 

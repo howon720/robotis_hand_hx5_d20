@@ -9,7 +9,11 @@ using namespace std::chrono_literals;
 namespace robotis_hand_tactile_hold {
 
 TactileGraspController::TactileGraspController()
-    : Node("tactile_grasp_controller"), tactile_sensor_(this->get_logger(), this->get_clock()) {
+    : Node("tactile_grasp_controller_hold"), tactile_sensor_(this->get_logger(), this->get_clock()) {
+
+  robotis_hand_tactile::declare_params(this);
+  param = robotis_hand_tactile::load_params(this);
+  tactile_sensor_.set_params(param);
 
   fingers_ = robotis_hand_tactile::init_fingers();
   hand_joint_names_ = robotis_hand_tactile::init_joint_names();
@@ -35,7 +39,7 @@ TactileGraspController::TactileGraspController()
     publish_traj();
   });
 
-  const auto period = std::chrono::duration<double>(1.0 / control_hz_);
+  const auto period = std::chrono::duration<double>(1.0 / param.control_hz);
   control_timer_ = this->create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
                                            std::bind(&TactileGraspController::control_loop, this));
 
@@ -101,7 +105,7 @@ void TactileGraspController::control_loop() {
 }
 
 bool TactileGraspController::unused_finger(int finger_idx) const {
-  return std::find(not_use_fingers_.begin(), not_use_fingers_.end(), finger_idx) != not_use_fingers_.end();
+  return std::find(param.un_use_finger.begin(), param.un_use_finger.end(), finger_idx) != param.un_use_finger.end();
 }
 
 void TactileGraspController::close_unused_finger() {
@@ -112,7 +116,7 @@ void TactileGraspController::close_unused_finger() {
     auto& finger = fingers_[i];
 
     for (int j = 1; j <= 3; ++j) {
-      finger.current_joint_targets[j] += close_step_ * 3;
+      finger.current_joint_targets[j] += param.close_step * 3;
       finger.current_joint_targets[j] =
           clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
     }
@@ -125,9 +129,9 @@ void TactileGraspController::handle_idle() {
 
 double TactileGraspController::finger_contact_threshold(int finger_idx) const {
   if (finger_idx == 0) {
-    return contact_threshold_ * thumb_contact_ratio_;
+    return param.contact_threshold * param.thumb_contact_ratio;
   }
-  return contact_threshold_;
+  return param.contact_threshold;
 }
 
 void TactileGraspController::handle_close() {
@@ -146,7 +150,7 @@ void TactileGraspController::handle_close() {
         const std::array<double, 4> weights = {0.5, 0.5, 0.8, 0.2}; // pinch
         // thumb : joint3, joint4
         for (int j = 2; j <= 3; ++j) {
-          finger.current_joint_targets[j] += close_step_ * weights[j];
+          finger.current_joint_targets[j] += param.close_step * weights[j];
           finger.current_joint_targets[j] =
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
@@ -154,7 +158,7 @@ void TactileGraspController::handle_close() {
         const std::array<double, 4> weights = {0.0, 0.5, 0.3, 0.2};
         // others : joint2, joint3, joint4
         for (int j = 1; j <= 3; ++j) {
-          finger.current_joint_targets[j] += close_step_ * weights[j];
+          finger.current_joint_targets[j] += param.close_step * weights[j];
           finger.current_joint_targets[j] =
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
@@ -234,7 +238,7 @@ void TactileGraspController::reset_grasp() {
 
 void TactileGraspController::set_desired_force() {
   for (int i = 0; i < fingers_num; ++i) {
-    desired_force_[i] = std::max(contact_force_[i] * reactive_force_scale_, finger_contact_threshold(i));
+    desired_force_[i] = std::max(contact_force_[i] * param.reactive_force, finger_contact_threshold(i));
 
     RCLCPP_INFO(this->get_logger(), "[%s] desired_force=%.3f", fingers_[i].name.c_str(), desired_force_[i]);
   }
@@ -257,7 +261,7 @@ void TactileGraspController::publish_traj() {
     }
   }
 
-  point.time_from_start = rclcpp::Duration::from_seconds(trajectory_dt_);
+  point.time_from_start = rclcpp::Duration::from_seconds(param.trajectory_dt);
   traj_msg.points.push_back(point);
   traj_pub_->publish(traj_msg);
 }

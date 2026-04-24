@@ -78,6 +78,7 @@ private:
   rclcpp::Publisher<JointTrajectoryMsg>::SharedPtr traj_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
   rclcpp::TimerBase::SharedPtr unused_finger_timer_;
+  robotis_hand_tactile::Params param;
 
   robotis_hand_tactile::TactileSensor tactile_sensor_;
 
@@ -98,22 +99,10 @@ private:
   bool joint_state_received_{false};
   bool baseline_{false};
 
-  double control_hz_{20.0};
-  double trajectory_dt_{0.05};
-
-  double close_step_{0.03};
-  double contact_threshold_{10.0};  // org : 10.0    //pinch : 3.0
-  double thumb_contact_ratio_{2.0}; // org : 2.8     // pinch : 1.0
-
-  double reactive_force_scale_{1.2}; // org : 1.0
-
   double deadband_L{-5.0}; // 오차 : 손떨림 보정
   double deadband_H{5.0};
   double kf_{0.002};
   double reactive_step_{0.02};
-
-  // thumb: 0, index: 1, middle: 2, ring: 3, little: 4
-  std::vector<int> not_use_fingers_{3, 4};
 };
 
 } // namespace robotis_hand_tactile_hold

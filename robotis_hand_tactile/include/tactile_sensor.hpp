@@ -3,6 +3,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "hx5d20_struct.h"
 #include "robotis_interfaces/msg/hand_pressures.hpp"
+#include "param.h"
 
 #include <optional>
 
@@ -20,6 +21,7 @@ public:
 
   void update_pressure(FingerArray& fingers, bool& baseline, const SensorArray& sensors);
   std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const;
+  void set_params(const robotis_hand_tactile::Params& params);
 
 private:
   void init_tactiles();
@@ -33,20 +35,18 @@ private:
 private:
   rclcpp::Logger logger_;
   rclcpp::Clock::SharedPtr clock_;
+  robotis_hand_tactile::Params param;
 
   std::array<std::pair<double, double>, tactiles_num> tactile_xy_{};
 
   double tactile_x_{0.02}; // 2cm
   double tactile_y_{0.02}; // 2cm
 
-  double ema_alpha_{0.2}; // 이전 센서값 비례
-  int baseline_sample_count_{30};
-
-  double x_center_threshold_{0.5}; // top down    : 70 almost ignore    best : 60
-  double y_center_threshold_{0.2}; // dead-zone(0~1)    : org 0.35
-
   double min_force_for_correction_{10.0};
   double cost_threshold_{0.1};
+
+  double ema_alpha_{0.2}; // 이전 센서값 비례
+  int baseline_sample_count_{30};
 };
 
 } // namespace robotis_hand_tactile

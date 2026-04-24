@@ -7,6 +7,11 @@ namespace robotis_hand_tactile {
 TactileGraspControllerNode::TactileGraspControllerNode()
     : TactileGraspController("tactile_grasp_controller"), tactile_sensor_(this->get_logger(), this->get_clock()) {
 
+  // param 읽기
+  declare_params(this);
+  param = load_params(this);
+  tactile_sensor_.set_params(param);
+
   pressure_sub_ = this->create_subscription<HandPressuresMsg>(
       "/right_hand/finger_pressures",
       10,
@@ -21,7 +26,7 @@ TactileGraspControllerNode::TactileGraspControllerNode()
 
   traj_pub_ = this->create_publisher<JointTrajectoryMsg>("/right_hand_controller/joint_trajectory", 10);
 
-  const auto period = std::chrono::duration<double>(1.0 / std::max(control_hz_, 1.0));
+  const auto period = std::chrono::duration<double>(1.0 / std::max(param.control_hz, 1.0));
   control_timer_ = this->create_wall_timer(std::chrono::duration_cast<std::chrono::milliseconds>(period),
                                            std::bind(&TactileGraspControllerNode::control_loop, this));
 
@@ -104,7 +109,7 @@ void TactileGraspControllerNode::publish_traj() {
     }
   }
 
-  point.time_from_start = rclcpp::Duration::from_seconds(trajectory_dt_);
+  point.time_from_start = rclcpp::Duration::from_seconds(param.trajectory_dt);
   traj_msg.points.push_back(point);
   traj_pub_->publish(traj_msg);
 }

@@ -26,6 +26,10 @@ void TactileSensor::init_tactiles() {
   }
 }
 
+void TactileSensor::set_params(const robotis_hand_tactile::Params& params) {
+  param = params;
+}
+
 bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
   if (msg->sensors.size() != fingers_num) {
     RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "sensors size mismatch: %zu", msg->sensors.size());
@@ -192,9 +196,9 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
   // center area is wider and configurable by y_center_ratio_threshold_
   const double abs_x_ratio = std::fabs(info.cop_x_ratio);
 
-  double y__ = y_center_threshold_ +
-               ((finger_idx == 0) ? 0.45 : 0.0); // 일단은 thumb 무시하는 코드가 여기에 추가되어 있음. 이것도 수정 필요
-  double x__ = x_center_threshold_ + ((finger_idx == 0) ? 0.45 : 0.0);
+  // 일단은 thumb 무시하는 코드가 여기에 추가되어 있음. 이것도 수정 필요
+  double y__ = param.y_center + ((finger_idx == 0) ? 0.45 : 0.0);
+  double x__ = param.x_center + ((finger_idx == 0) ? 0.45 : 0.0);
 
   if (abs_x_ratio > y__) {
     const double raw_cost_y = (abs_x_ratio - y__) / std::max(1.0 - y__, 1e-9);
@@ -232,13 +236,13 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
 // ============================================
 
 std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& info) const {
-  if (info.total_force < min_force_for_correction_) {
+  if (info.total_force < param.min_force_correction) {
     return std::nullopt;
   }
 
   // X_TOP / X_BOT by CoP ratio-based cost
   const double cost_x = std::max(info.x_top_cost, info.x_bot_cost);
-  if (cost_x >= cost_threshold_) {
+  if (cost_x >= param.cost_thres) {
     if (info.x_top_cost > info.x_bot_cost) {
       return CorrectionDecision{CorrectionType::X_TOP, info.x_top_cost};
     } else {
@@ -248,7 +252,7 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
 
   // Y_LEFT / Y_RIGHT by CoP ratio-based cost
   const double cost_y = std::max(info.y_left_cost, info.y_right_cost);
-  if (cost_y >= cost_threshold_) {
+  if (cost_y >= param.cost_thres) {
     if (info.y_left_cost > info.y_right_cost) {
       return CorrectionDecision{CorrectionType::Y_LEFT, info.y_left_cost};
     } else {

@@ -41,7 +41,8 @@ add_executable(tactile_grasp_controller_node
               src/tactile_sensor.cpp
               src/tactile_correction_planner.cpp
               src/hx5d20_init.cpp
-              src/finger_ik_solver.cpp)
+              src/finger_ik_solver.cpp
+              src/param.cpp)
 target_include_directories(tactile_grasp_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -52,7 +53,8 @@ install(TARGETS tactile_grasp_controller_node
 add_executable(tactile_grasp_controller_hold 
               src/tactile_grasp_controller_hold.cpp
               src/tactile_sensor.cpp
-              src/hx5d20_init.cpp)
+              src/hx5d20_init.cpp
+              src/param.cpp)
 target_include_directories(tactile_grasp_controller_hold PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -67,6 +69,10 @@ install(PROGRAMS
 
 install(
   DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
 )
 

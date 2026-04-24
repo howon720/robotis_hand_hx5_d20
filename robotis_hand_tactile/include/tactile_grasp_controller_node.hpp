@@ -9,6 +9,7 @@
 
 #include "tactile_grasp_controller.hpp"
 #include "tactile_sensor.hpp"
+#include "param.h"
 
 #include <mutex>
 

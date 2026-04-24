@@ -55,8 +55,8 @@ std::vector<std::string> init_joint_names() {
 
 std::vector<double> init_positions() {
   return {   // 1.0
-    // 0.297, -1.792, 0.0, 0.0,     // org
-    0.12, -1.68, 0.0, 0.0,     // tennis 3pinch
+    0.297, -1.792, 0.0, 0.0,     // org
+    // 0.12, -1.68, 0.0, 0.0,     // tennis 3pinch
     0.0,    0.8,   0.0, 0.0,
     0.0,    0.8,   0.0, 0.0,
     0.0,    0.8,   0.0, 0.0,
