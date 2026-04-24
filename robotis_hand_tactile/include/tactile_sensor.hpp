@@ -37,16 +37,13 @@ private:
   rclcpp::Clock::SharedPtr clock_;
   robotis_hand_tactile::Params param;
 
-  std::array<std::pair<double, double>, tactiles_num> tactile_xy_{};
+  std::array<std::pair<double, double>, tactiles_num> tactile_xy_;
 
-  double tactile_x_{0.02}; // 2cm
-  double tactile_y_{0.02}; // 2cm
+  double tactile_x_ = 0.02; // 2cm
+  double tactile_y_ = 0.02; // 2cm
 
-  double min_force_for_correction_{10.0};
-  double cost_threshold_{0.1};
-
-  double ema_alpha_{0.2}; // 이전 센서값 비례
-  int baseline_sample_count_{30};
+  double ema_alpha_ = 0.2;         // 이전 센서값 비례
+  int baseline_sample_count_ = 30; // baseline 쌓을 sample 개수
 };
 
 } // namespace robotis_hand_tactile

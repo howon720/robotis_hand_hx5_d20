@@ -150,7 +150,7 @@ void TactileGraspController::handle_close() {
         const std::array<double, 4> weights = {0.5, 0.5, 0.8, 0.2}; // pinch
         // thumb : joint3, joint4
         for (int j = 2; j <= 3; ++j) {
-          finger.current_joint_targets[j] += param.close_step * weights[j];
+          finger.current_joint_targets[j] += 2 * param.close_step * weights[j];
           finger.current_joint_targets[j] =
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
@@ -158,7 +158,7 @@ void TactileGraspController::handle_close() {
         const std::array<double, 4> weights = {0.0, 0.5, 0.3, 0.2};
         // others : joint2, joint3, joint4
         for (int j = 1; j <= 3; ++j) {
-          finger.current_joint_targets[j] += param.close_step * weights[j];
+          finger.current_joint_targets[j] += 2 * param.close_step * weights[j];
           finger.current_joint_targets[j] =
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
@@ -177,10 +177,10 @@ void TactileGraspController::handle_close() {
 
   if (all_contacted()) {
     set_desired_force();
-    // state_ = State::HOLD;
-    // RCLCPP_INFO(this->get_logger(), "State -> HOLD");
-    state_ = State::IDLE;
-    RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
+    state_ = State::HOLD;
+    RCLCPP_INFO(this->get_logger(), "State -> HOLD");
+    // state_ = State::IDLE;
+    // RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
   }
 }
 
@@ -309,7 +309,7 @@ double TactileGraspController::get_open_pos(const std::string& joint_name) const
 }
 
 double TactileGraspController::apply_deadband(double error) const {
-  if (error > deadband_L && error < deadband_H) {
+  if (error > -deadband && error < deadband) {
     return 0.0;
   }
   return error;

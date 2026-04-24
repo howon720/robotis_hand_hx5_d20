@@ -84,11 +84,11 @@ private:
 
   std::mutex mutex_;
 
-  FingerArrayMsg fingers_{};
+  FingerArrayMsg fingers_;
 
-  std::array<double, fingers_num> contact_force_{};
-  std::array<double, fingers_num> desired_force_{};
-  std::array<double, fingers_num> prev_filtered_force_{};
+  std::array<double, fingers_num> contact_force_;
+  std::array<double, fingers_num> desired_force_;
+  std::array<double, fingers_num> prev_filtered_force_;
 
   std::vector<std::string> hand_joint_names_;
   std::vector<double> init_positions_;
@@ -96,13 +96,12 @@ private:
 
   State state_{State::IDLE};
 
-  bool joint_state_received_{false};
-  bool baseline_{false};
+  bool joint_state_received_ = false;
+  bool baseline_ = false;
 
-  double deadband_L{-5.0}; // 오차 : 손떨림 보정
-  double deadband_H{5.0};
-  double kf_{0.002};
-  double reactive_step_{0.02};
+  double deadband = 5.0; // 오차 : 손떨림 보정
+  double kf_ = 0.002;
+  double reactive_step_ = 0.02;
 };
 
 } // namespace robotis_hand_tactile_hold

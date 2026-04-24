@@ -16,7 +16,7 @@ FingerPlanarIk::FingerPlanarIk(const std::array<FingerModel, fingers_num>& model
 }
 
 FingerPlanarIk::Pose2D FingerPlanarIk::fk(int finger_idx, const std::array<double, dof>& q) const {
-  Pose2D pose;
+  Pose2D pose{0.0, 0.0, 0.0};
   double angle = 0.0;
 
   for (int i = 0; i < dof; ++i) {

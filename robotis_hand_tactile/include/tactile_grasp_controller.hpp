@@ -89,9 +89,9 @@ protected:
   std::unique_ptr<FingerPlanarIk> finger_planar_ik_;
   std::unique_ptr<TactileCorrectionPlanner> correction_planner_;
 
-  FingerArray fingers_{};
-  CorrectionPlanArray correction_plans_{};
-  std::array<double, fingers_num> desired_force_{};
+  FingerArray fingers_;
+  CorrectionPlanArray correction_plans_;
+  std::array<double, fingers_num> desired_force_;
 
   std::vector<std::string> hand_joint_names_;
   std::vector<double> init_positions_;
@@ -100,22 +100,21 @@ protected:
   State state_{State::IDLE};
   HoldCorrectionStage hold_correction_stage_{HoldCorrectionStage::Y_FIRST};
 
-  bool joint_received_{false};
+  bool joint_received_ = false;
 
   // force control
-  double force_kp_{0.002}; // force error 값 계수
-  double deadband_L{5.0};  // 손떨림방지 : 이거 없어도 되는지 확인
-  double deadband_H{5.0};
+  double force_kp_ = 0.002; // force error 값 계수
+  double deadband = 5.0;    // 손떨림방지
 
   // correction
-  int phase_step_{4};
-  double y_corr_step_{0.03};  // CoP X Y 사용 step
-  double shift_step_{0.02};   // org : 0.01
-  double regrasp_step_{0.02}; // corr 중 regrasp
+  int phase_step_ = 4;
+  double y_corr_step_ = 0.03; // CoP X Y 사용 step
+  double shift_step_ = 0.02;
+  double regrasp_step_ = 0.02; // corr 중 regrasp
 
   // finger scaling
-  double min_step_scale_{0.3};
-  double max_step_scale_{1.0};
+  double min_step_scale_ = 0.3; // 이것도 없어도 되는지 확인
+  double max_step_scale_ = 1.0;
 
   std::array<bool, fingers_num> x_ik_failed_{false, false, false, false, false};
 };

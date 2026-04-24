@@ -11,15 +11,15 @@ public:
   static constexpr int dof = 3;
 
   struct FingerModel {
-    std::array<double, dof> joint_min{};
-    std::array<double, dof> joint_max{};
-    std::array<double, dof> link_lengths{};
+    std::array<double, dof> joint_min;
+    std::array<double, dof> joint_max;
+    std::array<double, dof> link_lengths;
   };
 
   struct Pose2D {
-    double y{0.0};
-    double z{0.0};
-    double theta{0.0};
+    double y;
+    double z;
+    double theta;
   };
 
   explicit FingerPlanarIk(const std::array<FingerModel, fingers_num>& models);

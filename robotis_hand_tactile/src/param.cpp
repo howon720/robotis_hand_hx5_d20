@@ -38,8 +38,14 @@ Params load_params(rclcpp::Node* node) {
   std::vector<int64_t> un_use_finger_tmp{};
   node->get_parameter("un_use_finger", un_use_finger_tmp);
   p.un_use_finger.clear();
-  for (const auto finger_idx : un_use_finger_tmp) {
-    p.un_use_finger.push_back(static_cast<int>(finger_idx));
+  for (const auto value : un_use_finger_tmp) {
+    if (value == 0) {
+      continue; // NONE
+    }
+    const int finger_idx = static_cast<int>(value - 1);
+    if (finger_idx >= 0 && finger_idx < 5) {
+      p.un_use_finger.push_back(finger_idx);
+    }
   }
 
   // tactile_sensor

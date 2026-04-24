@@ -173,18 +173,6 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
   info.cop_x /= info.total_force;
   info.cop_y /= info.total_force;
 
-  info.top_sum = p[0] + p[1] + p[2];
-  info.mid_sum = p[3] + p[4] + p[5];
-  info.bot_sum = p[6] + p[7] + p[8];
-
-  info.left_sum = p[0] + p[3] + p[6];
-  info.center_sum = p[1] + p[4] + p[7];
-  info.right_sum = p[2] + p[5] + p[8];
-
-  info.top_x_bias = (-1.0 * p[0]) + (0.0 * p[1]) + (1.0 * p[2]);
-  info.mid_x_bias = (-1.0 * p[3]) + (0.0 * p[4]) + (1.0 * p[5]);
-  info.bot_x_bias = (-1.0 * p[6]) + (0.0 * p[7]) + (1.0 * p[8]);
-
   // normalize CoP to [-1, 1] using half size of tactile sensor   : 센서 중심 0, left,down : -1 , right,up: +1
   const double half_x = tactile_x_ * 0.5;
   const double half_y = tactile_y_ * 0.5;
@@ -240,16 +228,6 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
     return std::nullopt;
   }
 
-  // X_TOP / X_BOT by CoP ratio-based cost
-  const double cost_x = std::max(info.x_top_cost, info.x_bot_cost);
-  if (cost_x >= param.cost_thres) {
-    if (info.x_top_cost > info.x_bot_cost) {
-      return CorrectionDecision{CorrectionType::X_TOP, info.x_top_cost};
-    } else {
-      return CorrectionDecision{CorrectionType::X_BOT, info.x_bot_cost};
-    }
-  }
-
   // Y_LEFT / Y_RIGHT by CoP ratio-based cost
   const double cost_y = std::max(info.y_left_cost, info.y_right_cost);
   if (cost_y >= param.cost_thres) {
@@ -257,6 +235,16 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
       return CorrectionDecision{CorrectionType::Y_LEFT, info.y_left_cost};
     } else {
       return CorrectionDecision{CorrectionType::Y_RIGHT, info.y_right_cost};
+    }
+  }
+
+  // X_TOP / X_BOT by CoP ratio-based cost
+  const double cost_x = std::max(info.x_top_cost, info.x_bot_cost);
+  if (cost_x >= param.cost_thres) {
+    if (info.x_top_cost > info.x_bot_cost) {
+      return CorrectionDecision{CorrectionType::X_TOP, info.x_top_cost};
+    } else {
+      return CorrectionDecision{CorrectionType::X_BOT, info.x_bot_cost};
     }
   }
 

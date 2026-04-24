@@ -2,22 +2,21 @@
   ros__parameters:
     control_hz: 20.0 # handle_hold rate   50ms 0.05sec
     trajectory_dt: 0.05
-    close_step: 0.03 # hold : 0.03
-    contact_threshold: 30.0 # // org : 10.0    //pinch : 3.0
+    close_step: 0.01 # 닫는 속도
+    contact_threshold: 30.0 # NODE : 30 HOLD : 10.0   PINCH : 3.0
     thumb_contact_ratio: 2.0 # thumb contact = other finger threshold 2x
-    un_use_finger: [9] # thumb: 0, index: 1, middle: 2, ring: 3, little: 4     비워 놓는건 안됨?
+    un_use_finger: [0] # NONE: 0, thumb: 1, index: 2, middle: 3, ring: 4, little: 5
 
     # tactile_sensor
-    x_center: 0.5 # // top down    : 70 almost ignore    best : 60
-    y_center: 0.2 # // dead-zone(0~1)    : org 0.35
+    # dead-zone(0~1)     만약 cost thres 없앴는데 심하게 보정하면 x_center, y_center 값 0.1씩 키우기
+    x_center: 0.5 # // top down      52
+    y_center: 0.2
     min_force_correction: 10.0
-    cost_thres: 0.1
-    ##   double min_force_for_correction_{10.0};
-    ## double cost_threshold_{0.1};
+    cost_thres: 0.1 # corr_deadband
 
     # hold
     reactive_force: 1.2
 
     # optimize
-    feedback_max_delta: 0.01 # feedback max step
-    regrasp_force: 3.0 # 재그립 완료 기준 = 평소 threshold의 1.5배       무거 3.0 과일 1.5
+    feedback_max_delta: 0.01 # feedback max step   피드백 보정 할때 얼만큼 가는지
+    regrasp_force: 1.5 # 재그립 완료 기준 = 평소 threshold의 1.5배

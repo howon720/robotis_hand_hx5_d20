@@ -27,43 +27,31 @@ enum class HoldCorrectionStage {
 
 struct CopInfo {
   std::array<double, tactiles_num> pressure{};
-  double total_force{0.0};
+  double total_force = 0.0;
 
-  double cop_x{0.0};
-  double cop_y{0.0};
+  double cop_x = 0.0;
+  double cop_y = 0.0;
 
-  double top_sum{0.0};
-  double mid_sum{0.0};
-  double bot_sum{0.0};
+  double cop_x_ratio = 0.0;
+  double cop_y_ratio = 0.0;
 
-  double left_sum{0.0};
-  double center_sum{0.0};
-  double right_sum{0.0};
-
-  double top_x_bias{0.0};
-  double mid_x_bias{0.0};
-  double bot_x_bias{0.0};
-
-  double cop_x_ratio{0.0};
-  double cop_y_ratio{0.0};
-
-  double y_left_cost{0.0};
-  double y_right_cost{0.0};
-  double x_top_cost{0.0};
-  double x_bot_cost{0.0};
+  double y_left_cost = 0.0;
+  double y_right_cost = 0.0;
+  double x_top_cost = 0.0;
+  double x_bot_cost = 0.0;
 };
 
 struct CorrectionDecision {
   CorrectionType type{CorrectionType::NONE};
-  double cost{0.0};
+  double cost = 0.0;
 };
 
 struct CorrectionPlan {
-  bool active{false};
+  bool active = false;
   CorrectionType type{CorrectionType::NONE};
-  int phase{0};
-  int ticks_remaining{0};
-  double cost{0.0};
+  int phase = 0;
+  int ticks_remaining = 0;
+  double cost = 0.0;
 };
 typedef std::array<CorrectionPlan, fingers_num> CorrectionPlanArray;
 
@@ -80,9 +68,9 @@ struct FingerData {
   std::array<double, tactiles_num> baseline_sum_tactiles{};
   std::array<double, tactiles_num> baseline_tactiles{};
   std::array<double, tactiles_num> ema_tactiles{};
-  int baseline_samples{0};
+  int baseline_samples = 0;
 
-  double filtered_force{0.0};
+  double filtered_force = 0.0;
   CopInfo cop{};
 };
 typedef std::array<FingerData, fingers_num> FingerArray;

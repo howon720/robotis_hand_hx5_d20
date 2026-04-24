@@ -123,7 +123,7 @@ void TactileGraspController::regulate_grasp_force(int finger_idx) {
   auto& finger = fingers_[finger_idx];
   const double error = desired_force_[finger_idx] - finger.filtered_force;
 
-  if (error > -deadband_L && error < deadband_H) {
+  if (error > -deadband && error < deadband) {
     return;
   }
 

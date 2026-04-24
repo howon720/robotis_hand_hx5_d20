@@ -63,7 +63,6 @@ std::vector<double> init_positions() {
     0.0,    0.8,   0.0, 0.0
   };
 
-
   // // 작은 과일 들 , maxim
   // std::vector<double> init_positions() {
   // return {   // 1.0
