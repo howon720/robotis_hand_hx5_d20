@@ -14,8 +14,8 @@ public:
 
   bool run_correction(int finger_idx, CorrectionPlan& plan);
   bool is_at_joint_limit(int finger_idx, CorrectionType type) const;
-  bool is_y_correction(CorrectionType type) const;
   bool is_x_correction(CorrectionType type) const;
+  bool is_y_correction(CorrectionType type) const;
   bool correction_blocked(HoldCorrectionStage stage) const;
   std::string correction_str(CorrectionType t) const;
 

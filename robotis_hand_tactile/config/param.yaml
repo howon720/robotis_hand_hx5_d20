@@ -1,22 +1,20 @@
 /**:
   ros__parameters:
-    control_hz: 20.0 # handle_hold rate   50ms 0.05sec
-    trajectory_dt: 0.05
-    close_step: 0.01 # 닫는 속도
-    contact_threshold: 30.0 # NODE : 30 HOLD : 10.0   PINCH : 3.0
-    thumb_contact_ratio: 2.0 # thumb contact = other finger threshold 2x
-    un_use_finger: [0] # NONE: 0, thumb: 1, index: 2, middle: 3, ring: 4, little: 5
+    control_hz: 20.0 # (Double) [Hz] Main control loop frequency
+    trajectory_dt: 0.05 # (Double) [sec] JointTrajectory point time interval
+    close_step: 0.01 # (Double) [rad] Joint closing increment per control step
+    contact_threshold: 30.0 # (Double) Tactile force threshold for contact detection
+    thumb_contact_ratio: 2.0 # (Double) Contact threshold multiplier for thumb
+    un_use_finger: [0] # (Int Array) Unused fingers, All_use: 0, thumb: 1, index: 2, middle: 3, ring: 4, little: 5
 
-    # tactile_sensor
-    # dead-zone(0~1)     만약 cost thres 없앴는데 심하게 보정하면 x_center, y_center 값 0.1씩 키우기
-    x_center: 0.5 # // top down      52
-    y_center: 0.2
-    min_force_correction: 10.0
-    cost_thres: 0.1 # corr_deadband
+    x_center: 0.5 # (Double) CoP x-axis dead zone threshold for LEFT/RIGHT correction
+    y_center: 0.2 # (Double) CoP y-axis dead zone threshold for TOP/BOT correction
+    min_force_correction: 10.0 # (Double) Minimum total tactile force required for CoP correction
+    cost_thres: 0.1 # (Double) Minimum CoP cost required for CoP correction
 
-    # hold
-    reactive_force: 1.2
+    # Force maintenance
+    reactive_force: 1.2 # (Double) Reactive target force scale used by force maintenance controller
 
-    # optimize
-    feedback_max_delta: 0.01 # feedback max step   피드백 보정 할때 얼만큼 가는지
-    regrasp_force: 1.5 # 재그립 완료 기준 = 평소 threshold의 1.5배
+    # Optimization Grasping
+    feedback_max_delta: 0.01 # (Double) [rad] Maximum joint delta for optimization feedback correction
+    regrasp_force_ratio: 3.0 # (Double) Regrasping target force scale used by optimization grasping controller

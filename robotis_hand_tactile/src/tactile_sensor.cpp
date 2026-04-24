@@ -180,42 +180,41 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
   info.cop_x_ratio = clamp(info.cop_x / std::max(half_x, 1e-9), -1.0, 1.0);
   info.cop_y_ratio = clamp(info.cop_y / std::max(half_y, 1e-9), -1.0, 1.0);
 
-  // Y_LEFT / Y_RIGHT decision is based on left-right CoP position
-  // center area is wider and configurable by y_center_ratio_threshold_
+  // X_LEFT / X_RIGHT decision is based on left-right CoP position
   const double abs_x_ratio = std::fabs(info.cop_x_ratio);
 
   // 일단은 thumb 무시하는 코드가 여기에 추가되어 있음. 이것도 수정 필요
   double y__ = param.y_center + ((finger_idx == 0) ? 0.45 : 0.0);
   double x__ = param.x_center + ((finger_idx == 0) ? 0.45 : 0.0);
 
-  if (abs_x_ratio > y__) {
-    const double raw_cost_y = (abs_x_ratio - y__) / std::max(1.0 - y__, 1e-9);
+  if (abs_x_ratio > x__) {
+    const double raw_cost_x = (abs_x_ratio - x__) / std::max(1.0 - x__, 1e-9);
 
-    const double cost_y = clamp(raw_cost_y, 0.0, 1.0); // 정규화 [0,1]
+    const double cost_x = clamp(raw_cost_x, 0.0, 1.0); // 정규화 [0,1]
 
     if (info.cop_x_ratio < 0.0) {
-      info.y_left_cost = cost_y;
-      info.y_right_cost = 0.0;
+      info.x_left_cost = cost_x;
+      info.x_right_cost = 0.0;
     } else {
-      info.y_left_cost = 0.0;
-      info.y_right_cost = cost_y;
+      info.x_left_cost = 0.0;
+      info.x_right_cost = cost_x;
     }
   }
 
-  // X_TOP / X_BOT decision is based on top-bottom CoP position
+  // Y_TOP / Y_BOT decision is based on top-bottom CoP position
   const double abs_y_ratio = std::fabs(info.cop_y_ratio);
 
-  if (abs_y_ratio > x__) {
-    const double raw_cost_x = (abs_y_ratio - x__) / std::max(1.0 - x__, 1e-9);
+  if (abs_y_ratio > y__) {
+    const double raw_cost_y = (abs_y_ratio - y__) / std::max(1.0 - y__, 1e-9);
 
-    const double cost_x = clamp(raw_cost_x, 0.0, 1.0);
+    const double cost_y = clamp(raw_cost_y, 0.0, 1.0);
 
     if (info.cop_y_ratio < 0.0) {
-      info.x_top_cost = cost_x;
-      info.x_bot_cost = 0.0;
+      info.y_top_cost = cost_y;
+      info.y_bot_cost = 0.0;
     } else {
-      info.x_top_cost = 0.0;
-      info.x_bot_cost = cost_x;
+      info.y_top_cost = 0.0;
+      info.y_bot_cost = cost_y;
     }
   }
 
@@ -228,23 +227,23 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
     return std::nullopt;
   }
 
-  // Y_LEFT / Y_RIGHT by CoP ratio-based cost
-  const double cost_y = std::max(info.y_left_cost, info.y_right_cost);
-  if (cost_y >= param.cost_thres) {
-    if (info.y_left_cost > info.y_right_cost) {
-      return CorrectionDecision{CorrectionType::Y_LEFT, info.y_left_cost};
+  // X_LEFT / X_RIGHT by CoP ratio-based cost
+  const double cost_x = std::max(info.x_left_cost, info.x_right_cost);
+  if (cost_x >= param.cost_thres) {
+    if (info.x_left_cost > info.x_right_cost) {
+      return CorrectionDecision{CorrectionType::X_LEFT, info.x_left_cost};
     } else {
-      return CorrectionDecision{CorrectionType::Y_RIGHT, info.y_right_cost};
+      return CorrectionDecision{CorrectionType::X_RIGHT, info.x_right_cost};
     }
   }
 
-  // X_TOP / X_BOT by CoP ratio-based cost
-  const double cost_x = std::max(info.x_top_cost, info.x_bot_cost);
-  if (cost_x >= param.cost_thres) {
-    if (info.x_top_cost > info.x_bot_cost) {
-      return CorrectionDecision{CorrectionType::X_TOP, info.x_top_cost};
+  // Y_TOP / Y_BOT by CoP ratio-based cost
+  const double cost_y = std::max(info.y_top_cost, info.y_bot_cost);
+  if (cost_y >= param.cost_thres) {
+    if (info.y_top_cost > info.y_bot_cost) {
+      return CorrectionDecision{CorrectionType::Y_TOP, info.y_top_cost};
     } else {
-      return CorrectionDecision{CorrectionType::X_BOT, info.x_bot_cost};
+      return CorrectionDecision{CorrectionType::Y_BOT, info.y_bot_cost};
     }
   }
 

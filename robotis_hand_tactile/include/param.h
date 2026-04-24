@@ -17,8 +17,8 @@ struct Params {
   std::vector<int> un_use_finger;
 
   // tactile_sensor
-  double x_center = 0.5;
-  double y_center = 0.2;
+  double y_center = 0.5;
+  double x_center = 0.2;
   double min_force_correction = 10.0;
   double cost_thres = 0.1;
 

@@ -14,31 +14,31 @@ typedef std::array<double, tactiles_num> PressureArray;
 
 enum class CorrectionType {
   NONE,
-  X_TOP,
-  X_BOT,
-  Y_LEFT,
-  Y_RIGHT
+  Y_TOP,
+  Y_BOT,
+  X_LEFT,
+  X_RIGHT
 };
 
 enum class HoldCorrectionStage {
-  Y_FIRST,
-  X_SECOND
+  X_FIRST,
+  Y_SECOND
 };
 
 struct CopInfo {
   std::array<double, tactiles_num> pressure{};
   double total_force = 0.0;
 
-  double cop_x = 0.0;
   double cop_y = 0.0;
+  double cop_x = 0.0;
 
-  double cop_x_ratio = 0.0;
   double cop_y_ratio = 0.0;
+  double cop_x_ratio = 0.0;
 
-  double y_left_cost = 0.0;
-  double y_right_cost = 0.0;
-  double x_top_cost = 0.0;
-  double x_bot_cost = 0.0;
+  double x_left_cost = 0.0;
+  double x_right_cost = 0.0;
+  double y_top_cost = 0.0;
+  double y_bot_cost = 0.0;
 };
 
 struct CorrectionDecision {

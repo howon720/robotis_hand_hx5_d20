@@ -188,7 +188,7 @@ void TactileGraspController::handle_hold() {
       continue;
     }
 
-    if (hold_correction_stage_ == HoldCorrectionStage::X_SECOND) {
+    if (hold_correction_stage_ == HoldCorrectionStage::Y_SECOND) {
       if (fingers_[i].filtered_force < param.regrasp_force * finger_contact_threshold(i)) {
         grasp_step_hold(i, regrasp_step_);
         continue;
@@ -197,29 +197,29 @@ void TactileGraspController::handle_hold() {
 
     regulate_grasp_force(i);
 
-    if (!x_ik_failed_[i]) {
+    if (!y_ik_failed_[i]) {
       correction_planner_->start_correction(i);
     }
   }
 
   publish_traj();
 
-  if (hold_correction_stage_ == HoldCorrectionStage::Y_FIRST) {
-    if (correction_planner_->correction_blocked(HoldCorrectionStage::Y_FIRST)) {
-      hold_correction_stage_ = HoldCorrectionStage::X_SECOND;
+  if (hold_correction_stage_ == HoldCorrectionStage::X_FIRST) {
+    if (correction_planner_->correction_blocked(HoldCorrectionStage::X_FIRST)) {
+      hold_correction_stage_ = HoldCorrectionStage::Y_SECOND;
 
       for (auto& plan : correction_plans_) {
         plan = CorrectionPlan{};
       }
-      RCLCPP_INFO(this->get_logger(), "Y correction done -> switch to X correction");
+      RCLCPP_INFO(this->get_logger(), "X correction done -> switch to Y correction");
     }
   } else {
-    if (correction_planner_->correction_blocked(HoldCorrectionStage::X_SECOND)) {
+    if (correction_planner_->correction_blocked(HoldCorrectionStage::Y_SECOND)) {
       if (all_finger_contacted()) {
-        RCLCPP_INFO(this->get_logger(), "X correction done + force satisfied -> IDLE");
+        RCLCPP_INFO(this->get_logger(), "Y correction done + force satisfied -> IDLE");
         state_ = State::IDLE;
       } else {
-        RCLCPP_INFO(this->get_logger(), "X correction done but force not satisfied -> keep HOLD");
+        RCLCPP_INFO(this->get_logger(), "Y correction done but force not satisfied -> keep HOLD");
       }
     }
   }
@@ -297,14 +297,14 @@ void TactileGraspController::reset_grasp() {
     finger.contact_detected = false;
   }
 
-  for (auto& failed : x_ik_failed_) {
+  for (auto& failed : y_ik_failed_) {
     failed = false;
   }
 
   for (auto& plan : correction_plans_) {
     plan = CorrectionPlan{};
   }
-  hold_correction_stage_ = HoldCorrectionStage::Y_FIRST;
+  hold_correction_stage_ = HoldCorrectionStage::X_FIRST;
 
   sync_targets();
 }
@@ -374,7 +374,7 @@ bool TactileGraspController::correction_ik(int finger_idx, bool forward_y) {
   const auto maybe_q = finger_planar_ik_->solve_shift_local(solver_idx, current_q, local_dy, local_dz);
 
   if (!maybe_q.has_value()) {
-    x_ik_failed_[finger_idx] = true;
+    y_ik_failed_[finger_idx] = true;
     RCLCPP_WARN(this->get_logger(), "[%s] planar IK failed", fingers_[finger_idx].name.c_str());
     return false;
   }

@@ -12,8 +12,8 @@ void declare_params(rclcpp::Node* node) {
   node->declare_parameter<std::vector<int64_t>>("un_use_finger", std::vector<int64_t>{});
 
   // tactile_sensor
-  node->declare_parameter<double>("x_center", 0.5);
-  node->declare_parameter<double>("y_center", 0.2);
+  node->declare_parameter<double>("y_center", 0.5);
+  node->declare_parameter<double>("x_center", 0.2);
   node->declare_parameter<double>("min_force_correction", 10.0);
   node->declare_parameter<double>("cost_thres", 0.1);
 
@@ -49,8 +49,8 @@ Params load_params(rclcpp::Node* node) {
   }
 
   // tactile_sensor
-  node->get_parameter("x_center", p.x_center);
   node->get_parameter("y_center", p.y_center);
+  node->get_parameter("x_center", p.x_center);
   node->get_parameter("min_force_correction", p.min_force_correction);
   node->get_parameter("cost_thres", p.cost_thres);
 

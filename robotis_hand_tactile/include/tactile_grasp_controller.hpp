@@ -98,7 +98,7 @@ protected:
   std::map<std::string, double> curr_joint_;
 
   State state_{State::IDLE};
-  HoldCorrectionStage hold_correction_stage_{HoldCorrectionStage::Y_FIRST};
+  HoldCorrectionStage hold_correction_stage_{HoldCorrectionStage::X_FIRST};
 
   bool joint_received_ = false;
 
@@ -108,7 +108,7 @@ protected:
 
   // correction
   int phase_step_ = 4;
-  double y_corr_step_ = 0.03; // CoP X Y 사용 step
+  double x_corr_step_ = 0.03; // CoP X Y 사용 step
   double shift_step_ = 0.02;
   double regrasp_step_ = 0.02; // corr 중 regrasp
 
@@ -116,7 +116,7 @@ protected:
   double min_step_scale_ = 0.3; // 이것도 없어도 되는지 확인
   double max_step_scale_ = 1.0;
 
-  std::array<bool, fingers_num> x_ik_failed_{false, false, false, false, false};
+  std::array<bool, fingers_num> y_ik_failed_{false, false, false, false, false};
 };
 
 } // namespace robotis_hand_tactile
