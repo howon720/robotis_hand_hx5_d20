@@ -27,38 +27,46 @@ public:
     HOLD
   };
 
+  /**
+   * @brief Construct tactile grasp controller.
+   */
   explicit TactileGraspController(const std::string& node_name = "tactile_grasp_controller");
   virtual ~TactileGraspController();
 
-  // init
+  /**
+   * @brief Initialize finger information.
+   */
   void init_fingers();
+
+  /**
+   * @brief Initialize joint target values.
+   */
   void init_joints();
 
-  // control loop
+  // State handlers
   void handle_idle();
   void handle_close();
   void handle_hold();
 
+  // Force control
   void set_desired_force();
   void regulate_grasp_force(int finger_idx);
 
+  // Joint command utilities
   void grasp_step_hold(int finger_idx, double step);
   void release_step_hold(int finger_idx, double step);
-
   void apply_ratio_step(int finger_idx,
                         const std::array<int, 3>& local_joint_ids,
                         const std::array<double, 3>& ratios,
                         double signed_step);
-
   void shift_joint1(int finger_idx, double delta);
   void shift_thumb_y(int finger_idx, double delta1, double delta2);
   void grasp_234(int finger_idx, double step);
   void release_234(int finger_idx, double step);
-
   void reset_grasp();
   void sync_targets();
   bool all_contacted() const;
-
+  bool all_finger_contacted() const;
   bool get_target(const std::string& joint_name, double& target) const;
   double get_joint_pos(const std::string& joint_name) const;
   double get_open_pos(const std::string& joint_name) const;
@@ -68,13 +76,12 @@ public:
   double finger_step_scale(int finger_idx) const;
   double max_filtered_force() const;
 
+  // IK
   bool correction_ik(int finger_idx, bool forward_y);
   std::array<double, 3> get_planar_q(int finger_idx) const;
   void set_planar_q(int finger_idx, const std::array<double, 3>& q);
 
-  bool all_finger_contacted() const;
-
-  // not use finger
+  // Unused finger handling
   bool unused_finger(int finger_idx) const;
   void close_unused_finger();
 
@@ -83,12 +90,15 @@ protected:
   virtual std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const = 0;
 
 protected:
+  // Parameters
   friend class TactileCorrectionPlanner;
   robotis_hand_tactile::Params param;
 
+  // IK and correction planner
   std::unique_ptr<FingerPlanarIk> finger_planar_ik_;
   std::unique_ptr<TactileCorrectionPlanner> correction_planner_;
 
+  // Finger and joint states
   FingerArray fingers_;
   CorrectionPlanArray correction_plans_;
   std::array<double, fingers_num> desired_force_;
@@ -97,22 +107,23 @@ protected:
   std::vector<double> init_positions_;
   std::map<std::string, double> curr_joint_;
 
+  // Controller state
   State state_{State::IDLE};
   HoldCorrectionStage hold_correction_stage_{HoldCorrectionStage::X_FIRST};
 
   bool joint_received_ = false;
 
-  // force control
-  double force_kp_ = 0.002; // force error 값 계수
-  double deadband = 5.0;    // 손떨림방지
+  // Force control
+  double force_kp_ = 0.002; // Force feedback gain
+  double deadband = 5.0;    // Deadband for small force errors
 
-  // correction
+  // CoP correction
   int phase_step_ = 4;
-  double x_corr_step_ = 0.03; // CoP X Y 사용 step
+  double x_corr_step_ = 0.03;
   double shift_step_ = 0.02;
-  double regrasp_step_ = 0.02; // corr 중 regrasp
+  double regrasp_step_ = 0.02;
 
-  // finger scaling
+  // Finger step scaling
   double min_step_scale_ = 0.3; // 이것도 없어도 되는지 확인
   double max_step_scale_ = 1.0;
 

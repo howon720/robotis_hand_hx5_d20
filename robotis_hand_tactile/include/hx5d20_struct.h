@@ -6,12 +6,13 @@
 
 namespace robotis_hand_tactile {
 
+// Number of fingers, tactile cells, and joints.
 constexpr int fingers_num = 5;
 constexpr int tactiles_num = 9;
 constexpr int joints_per_finger = 4;
-
 typedef std::array<double, tactiles_num> PressureArray;
 
+// Correction direction based on tactile CoP error.
 enum class CorrectionType {
   NONE,
   Y_TOP,
@@ -19,12 +20,12 @@ enum class CorrectionType {
   X_LEFT,
   X_RIGHT
 };
-
 enum class HoldCorrectionStage {
   X_FIRST,
   Y_SECOND
 };
 
+// Tactile center-of-pressure information.
 struct CopInfo {
   std::array<double, tactiles_num> pressure{};
   double total_force = 0.0;

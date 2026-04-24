@@ -11,6 +11,10 @@ TactileSensor::TactileSensor(const rclcpp::Logger& logger, const rclcpp::Clock::
   init_tactiles();
 }
 
+void TactileSensor::set_params(const robotis_hand_tactile::Params& params) {
+  param = params;
+}
+
 void TactileSensor::init_tactiles() {
   const double x_offset = tactile_x_ / 3.0;
   const double y_offset = tactile_y_ / 3.0;
@@ -24,10 +28,6 @@ void TactileSensor::init_tactiles() {
       tactile_xy_[idx++] = {x, y};
     }
   }
-}
-
-void TactileSensor::set_params(const robotis_hand_tactile::Params& params) {
-  param = params;
 }
 
 bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
@@ -64,6 +64,7 @@ bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
 SensorArray TactileSensor::parse_sensors(const HandPressuresPtr msg) const {
   SensorArray out{};
 
+  // Copy tactile sensor names and 3x3 pressure values.
   for (size_t i = 0; i < fingers_num; ++i) {
     out[i].name = msg->sensors[i].sensor_name;
 
@@ -81,6 +82,7 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
     return false;
   }
 
+  // Accumulate baseline samples.
   for (int f = 0; f < fingers_num; ++f) {
     for (int t = 0; t < tactiles_num; ++t) {
       fingers[f].baseline_sum_tactiles[t] += sensors[f].values[t];
@@ -88,6 +90,7 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
     fingers[f].baseline_samples++;
   }
 
+  // Wait until all fingers collect enough samples.
   bool ready = true;
   for (int f = 0; f < fingers_num; ++f) {
     if (fingers[f].baseline_samples < baseline_sample_count_) {
@@ -100,8 +103,10 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
     return true;
   }
 
+  // Store averaged baseline and reset EMA values.
   for (int f = 0; f < fingers_num; ++f) {
     const int count = std::max(1, fingers[f].baseline_samples);
+
     for (int t = 0; t < tactiles_num; ++t) {
       fingers[f].baseline_tactiles[t] = fingers[f].baseline_sum_tactiles[t] / static_cast<double>(count);
       fingers[f].ema_tactiles[t] = 0.0;
@@ -110,6 +115,7 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
 
   baseline = true;
   RCLCPP_INFO(logger_, "Tactile-wise baseline ready.");
+
   return true;
 }
 
@@ -117,14 +123,15 @@ PressureArray TactileSensor::filter_pressure(FingerData& finger, const Hx5d20Sen
   PressureArray filtered{};
 
   for (int t = 0; t < tactiles_num; ++t) {
-    double v = sensor.values[t];
-    v -= finger.baseline_tactiles[t];
+    double value = sensor.values[t] - finger.baseline_tactiles[t];
 
-    if (v < 0.0) { // baseline 보다 압력이 낮아질 시 0으로 고정
-      v = 0.0;
+    // Ignore pressure values lower than baseline.
+    if (value < 0.0) {
+      value = 0.0;
     }
 
-    finger.ema_tactiles[t] = (1.0 - ema_alpha_) * finger.ema_tactiles[t] + ema_alpha_ * v;
+    // Apply exponential moving average filter.
+    finger.ema_tactiles[t] = (1.0 - ema_alpha_) * finger.ema_tactiles[t] + ema_alpha_ * value;
 
     filtered[t] = finger.ema_tactiles[t];
   }
@@ -140,8 +147,10 @@ void TactileSensor::update_finger_state(int finger_idx, FingerData& finger, cons
   const auto filtered = filter_pressure(finger, sensor);
   const double total_force = calc_total_force(filtered);
 
+  // Update filtered total force.
   finger.filtered_force = (1.0 - ema_alpha_) * finger.filtered_force + ema_alpha_ * total_force;
 
+  // Update center of pressure information.
   finger.cop = calc_cop(finger_idx, filtered);
 }
 
@@ -155,42 +164,42 @@ void TactileSensor::update_pressure(FingerArray& fingers, bool& baseline, const 
   }
 }
 
-// ==========================================
-// CoP 계산
-CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
+CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& pressure) const {
   CopInfo info;
-  info.pressure = p;
-  info.total_force = std::accumulate(p.begin(), p.end(), 0.0);
+  info.pressure = pressure;
+  info.total_force = calc_total_force(pressure);
 
   if (info.total_force <= 1e-9) {
     return info;
   }
 
+  // Calculate weighted center of pressure.
   for (int i = 0; i < tactiles_num; ++i) {
-    info.cop_x += p[i] * tactile_xy_[i].first;
-    info.cop_y += p[i] * tactile_xy_[i].second;
+    info.cop_x += pressure[i] * tactile_xy_[i].first;
+    info.cop_y += pressure[i] * tactile_xy_[i].second;
   }
+
   info.cop_x /= info.total_force;
   info.cop_y /= info.total_force;
 
-  // normalize CoP to [-1, 1] using half size of tactile sensor   : 센서 중심 0, left,down : -1 , right,up: +1
+  // Normalize CoP to [-1, 1].
+  // x: left(-) to right(+), y: top(-) to bottom(+)
   const double half_x = tactile_x_ * 0.5;
   const double half_y = tactile_y_ * 0.5;
 
   info.cop_x_ratio = clamp(info.cop_x / std::max(half_x, 1e-9), -1.0, 1.0);
   info.cop_y_ratio = clamp(info.cop_y / std::max(half_y, 1e-9), -1.0, 1.0);
 
-  // X_LEFT / X_RIGHT decision is based on left-right CoP position
+  // Apply wider dead zone for thumb.
+  const double x_center = param.x_center + ((finger_idx == 0) ? 0.45 : 0.0);
+  const double y_center = param.y_center + ((finger_idx == 0) ? 0.45 : 0.0);
+
+  // Calculate left/right correction cost from x-axis CoP.
   const double abs_x_ratio = std::fabs(info.cop_x_ratio);
 
-  // 일단은 thumb 무시하는 코드가 여기에 추가되어 있음. 이것도 수정 필요
-  double y__ = param.y_center + ((finger_idx == 0) ? 0.45 : 0.0);
-  double x__ = param.x_center + ((finger_idx == 0) ? 0.45 : 0.0);
-
-  if (abs_x_ratio > x__) {
-    const double raw_cost_x = (abs_x_ratio - x__) / std::max(1.0 - x__, 1e-9);
-
-    const double cost_x = clamp(raw_cost_x, 0.0, 1.0); // 정규화 [0,1]
+  if (abs_x_ratio > x_center) {
+    const double raw_cost_x = (abs_x_ratio - x_center) / std::max(1.0 - x_center, 1e-9);
+    const double cost_x = clamp(raw_cost_x, 0.0, 1.0);
 
     if (info.cop_x_ratio < 0.0) {
       info.x_left_cost = cost_x;
@@ -201,12 +210,11 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
     }
   }
 
-  // Y_TOP / Y_BOT decision is based on top-bottom CoP position
+  // Calculate top/bottom correction cost from y-axis CoP.
   const double abs_y_ratio = std::fabs(info.cop_y_ratio);
 
-  if (abs_y_ratio > y__) {
-    const double raw_cost_y = (abs_y_ratio - y__) / std::max(1.0 - y__, 1e-9);
-
+  if (abs_y_ratio > y_center) {
+    const double raw_cost_y = (abs_y_ratio - y_center) / std::max(1.0 - y_center, 1e-9);
     const double cost_y = clamp(raw_cost_y, 0.0, 1.0);
 
     if (info.cop_y_ratio < 0.0) {
@@ -220,14 +228,13 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& p) const {
 
   return info;
 }
-// ============================================
 
 std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& info) const {
   if (info.total_force < param.min_force_correction) {
     return std::nullopt;
   }
 
-  // X_LEFT / X_RIGHT by CoP ratio-based cost
+  // Select left/right correction first.
   const double cost_x = std::max(info.x_left_cost, info.x_right_cost);
   if (cost_x >= param.cost_thres) {
     if (info.x_left_cost > info.x_right_cost) {
@@ -237,7 +244,7 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
     }
   }
 
-  // Y_TOP / Y_BOT by CoP ratio-based cost
+  // Select top/bottom correction.
   const double cost_y = std::max(info.y_top_cost, info.y_bot_cost);
   if (cost_y >= param.cost_thres) {
     if (info.y_top_cost > info.y_bot_cost) {

@@ -192,7 +192,7 @@ void TactileGraspController::handle_hold() {
     double dq_scalar = apply_deadband(error);
 
     if (dq_scalar != 0.0) {
-      dq_scalar *= kf_;
+      dq_scalar *= force_kp_;
     }
 
     dq_scalar = clamp(dq_scalar, -reactive_step_, reactive_step_);

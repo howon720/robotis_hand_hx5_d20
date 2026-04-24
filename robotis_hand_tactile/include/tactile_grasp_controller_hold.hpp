@@ -94,13 +94,15 @@ private:
   std::vector<double> init_positions_;
   std::map<std::string, double> curr_joint_;
 
+  // Controller state
   State state_{State::IDLE};
 
   bool joint_state_received_ = false;
   bool baseline_ = false;
 
-  double deadband = 5.0; // 오차 : 손떨림 보정
-  double kf_ = 0.002;
+  // Force control
+  double force_kp_ = 0.002; // Force feedback gain
+  double deadband = 5.0;    // Deadband for small force errors
   double reactive_step_ = 0.02;
 };
 
