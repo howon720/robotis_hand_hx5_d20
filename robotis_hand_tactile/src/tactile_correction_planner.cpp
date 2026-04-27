@@ -11,19 +11,20 @@ void TactileCorrectionPlanner::start_correction(int finger_idx) {
     return;
   }
 
+  // Run only the correction type allowed by the current hold correction stage.
   if (controller_.hold_correction_stage_ == HoldCorrectionStage::X_FIRST && !is_x_correction(maybe_decision->type)) {
     return;
   }
-
   if (controller_.hold_correction_stage_ == HoldCorrectionStage::Y_SECOND && !is_y_correction(maybe_decision->type)) {
     return;
   }
 
-  // max_min limit
+  // Skip correction if the required joint is already at the limit.
   if (!is_at_joint_limit(finger_idx, maybe_decision->type)) {
     return;
   }
 
+  // Initialize correction plan.
   auto& plan = controller_.correction_plans_[finger_idx];
   plan.type = maybe_decision->type;
   plan.cost = maybe_decision->cost;
@@ -31,10 +32,10 @@ void TactileCorrectionPlanner::start_correction(int finger_idx) {
   plan.active = true;
 
   switch (plan.type) {
-  case CorrectionType::Y_TOP:
-  case CorrectionType::Y_BOT:
   case CorrectionType::X_LEFT:
   case CorrectionType::X_RIGHT:
+  case CorrectionType::Y_TOP:
+  case CorrectionType::Y_BOT:
     plan.ticks_remaining = controller_.phase_step_;
     break;
   default:
@@ -67,93 +68,63 @@ bool TactileCorrectionPlanner::run_correction(int finger_idx, CorrectionPlan& pl
     return true;
   }
 
-  const double scale = controller_.finger_step_scale(finger_idx);
-
   switch (plan.type) {
-  case CorrectionType::Y_TOP: {
-    const bool moved = controller_.correction_ik(finger_idx, true);
-    plan.ticks_remaining--;
-    return (!moved || plan.ticks_remaining <= 0);
-  }
+  case CorrectionType::X_LEFT:
+    return run_x_correction(finger_idx, plan, 1);
 
-  case CorrectionType::Y_BOT: {
-    const bool moved = controller_.correction_ik(finger_idx, false);
-    plan.ticks_remaining--;
-    return (!moved || plan.ticks_remaining <= 0);
-  }
+  case CorrectionType::X_RIGHT:
+    return run_x_correction(finger_idx, plan, -1);
 
-  case CorrectionType::X_LEFT: {
-    if (plan.phase == 0) {
-      controller_.release_234(finger_idx, controller_.x_corr_step_ * scale);
-      plan.ticks_remaining--;
-      if (plan.ticks_remaining <= 0) {
-        plan.phase = 1;
-        plan.ticks_remaining = controller_.phase_step_;
-      }
-      return false;
-    }
+  case CorrectionType::Y_TOP:
+    return run_y_correction(finger_idx, plan, true);
 
-    if (plan.phase == 1) {
-      if (finger_idx == 0) {
-        controller_.shift_thumb_y(finger_idx, controller_.shift_step_, controller_.shift_step_);
-      } else {
-        controller_.shift_joint1(finger_idx, -controller_.shift_step_);
-      }
-
-      plan.ticks_remaining--;
-      if (plan.ticks_remaining <= 0) {
-        plan.phase = 2;
-        plan.ticks_remaining = controller_.phase_step_;
-      }
-      return false;
-    }
-
-    if (plan.phase == 2) {
-      controller_.grasp_234(finger_idx, controller_.x_corr_step_ * scale);
-      plan.ticks_remaining--;
-      return (plan.ticks_remaining <= 0);
-    }
-    return true;
-  }
-
-  case CorrectionType::X_RIGHT: {
-    if (plan.phase == 0) {
-      controller_.release_234(finger_idx, controller_.x_corr_step_ * scale);
-      plan.ticks_remaining--;
-      if (plan.ticks_remaining <= 0) {
-        plan.phase = 1;
-        plan.ticks_remaining = controller_.phase_step_;
-      }
-      return false;
-    }
-
-    if (plan.phase == 1) {
-      if (finger_idx == 0) {
-        // thumb: joint1, joint2 둘 다 -- 방향
-        controller_.shift_thumb_y(finger_idx, -controller_.shift_step_, -controller_.shift_step_);
-      } else {
-        controller_.shift_joint1(finger_idx, +controller_.shift_step_);
-      }
-
-      plan.ticks_remaining--;
-      if (plan.ticks_remaining <= 0) {
-        plan.phase = 2;
-        plan.ticks_remaining = controller_.phase_step_;
-      }
-      return false;
-    }
-
-    if (plan.phase == 2) {
-      controller_.grasp_234(finger_idx, controller_.x_corr_step_ * scale);
-      plan.ticks_remaining--;
-      return (plan.ticks_remaining <= 0);
-    }
-    return true;
-  }
+  case CorrectionType::Y_BOT:
+    return run_y_correction(finger_idx, plan, false);
 
   default:
     return true;
   }
+}
+
+bool TactileCorrectionPlanner::run_x_correction(int finger_idx, CorrectionPlan& plan, int direction) {
+  const double scale = controller_.finger_step_scale(finger_idx);
+  // Phase 0: release joints before lateral correction.
+  if (plan.phase == 0) {
+    controller_.release_joint(finger_idx, controller_.x_corr_step_ * scale);
+    plan.ticks_remaining--;
+    if (plan.ticks_remaining <= 0) {
+      plan.phase = 1;
+      plan.ticks_remaining = controller_.phase_step_;
+    }
+    return false;
+  }
+  // Phase 1: shift lateral joint direction.
+  if (plan.phase == 1) {
+    if (finger_idx == 0) {
+      controller_.shift_thumb(finger_idx, direction * controller_.shift_step_, direction * controller_.shift_step_);
+    } else {
+      controller_.shift_joint(finger_idx, -direction * controller_.shift_step_);
+    }
+    plan.ticks_remaining--;
+    if (plan.ticks_remaining <= 0) {
+      plan.phase = 2;
+      plan.ticks_remaining = controller_.phase_step_;
+    }
+    return false;
+  }
+  // Phase 2: re-grasp after lateral shift.
+  if (plan.phase == 2) {
+    controller_.grasp_joint(finger_idx, controller_.x_corr_step_ * scale);
+    plan.ticks_remaining--;
+    return plan.ticks_remaining <= 0;
+  }
+  return true;
+}
+
+bool TactileCorrectionPlanner::run_y_correction(int finger_idx, CorrectionPlan& plan, bool forward_y) {
+  const bool moved = controller_.correction_ik(finger_idx, forward_y);
+  plan.ticks_remaining--;
+  return (!moved || plan.ticks_remaining <= 0);
 }
 
 bool TactileCorrectionPlanner::is_at_joint_limit(int finger_idx, CorrectionType type) const {
@@ -206,15 +177,12 @@ bool TactileCorrectionPlanner::correction_blocked(HoldCorrectionStage stage) con
     if (!maybe_decision.has_value()) {
       continue;
     }
-
     if (stage == HoldCorrectionStage::X_FIRST && !is_x_correction(maybe_decision->type)) {
       continue;
     }
-
     if (stage == HoldCorrectionStage::Y_SECOND && !is_y_correction(maybe_decision->type)) {
       continue;
     }
-
     if (is_at_joint_limit(i, maybe_decision->type)) {
       return false;
     }
@@ -226,14 +194,14 @@ std::string TactileCorrectionPlanner::correction_str(CorrectionType t) const {
   switch (t) {
   case CorrectionType::NONE:
     return "NONE";
-  case CorrectionType::Y_TOP:
-    return "Y_TOP";
-  case CorrectionType::Y_BOT:
-    return "Y_BOT";
   case CorrectionType::X_LEFT:
     return "X_LEFT";
   case CorrectionType::X_RIGHT:
     return "X_RIGHT";
+  case CorrectionType::Y_TOP:
+    return "Y_TOP";
+  case CorrectionType::Y_BOT:
+    return "Y_BOT";
   default:
     return "UNKNOWN";
   }

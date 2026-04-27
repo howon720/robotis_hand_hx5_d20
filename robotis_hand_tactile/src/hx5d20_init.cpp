@@ -33,7 +33,7 @@ FingerArray init_fingers() {
   fingers[4].name = "little";
   fingers[4].joint_names = {"finger_r_joint17", "finger_r_joint18", "finger_r_joint19", "finger_r_joint20"};
   fingers[4].joint_min = {-0.6, -1.5, -1.5, -1.5};
-  fingers[4].joint_max = {1.5, 1.5, 1.5, 1.5};
+  fingers[4].joint_max = {1.5, 1.5, 1.5, 1.5}; // 범위 넓혀 놓음 = urdf 랑 joint 5, 17 매칭 필요
 
   for (auto& finger : fingers) {
     finger.current_joint_targets = {0.0, 0.0, 0.0, 0.0};

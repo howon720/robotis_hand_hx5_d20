@@ -35,7 +35,6 @@ bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
     RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "sensors size mismatch: %zu", msg->sensors.size());
     return false;
   }
-
   for (size_t i = 0; i < msg->sensors.size(); ++i) {
     if (msg->sensors[i].pressure_names.size() != tactiles_num) {
       RCLCPP_WARN_THROTTLE(logger_,
@@ -57,7 +56,6 @@ bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
       return false;
     }
   }
-
   return true;
 }
 
@@ -73,7 +71,6 @@ SensorArray TactileSensor::parse_sensors(const HandPressuresPtr msg) const {
       out[i].values[j] = static_cast<double>(msg->sensors[i].pressure_values[j]);
     }
   }
-
   return out;
 }
 
@@ -81,7 +78,6 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
   if (baseline) {
     return false;
   }
-
   // Accumulate baseline samples.
   for (int f = 0; f < fingers_num; ++f) {
     for (int t = 0; t < tactiles_num; ++t) {
@@ -89,7 +85,6 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
     }
     fingers[f].baseline_samples++;
   }
-
   // Wait until all fingers collect enough samples.
   bool ready = true;
   for (int f = 0; f < fingers_num; ++f) {
@@ -98,7 +93,6 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
       break;
     }
   }
-
   if (!ready) {
     return true;
   }
@@ -112,7 +106,6 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
       fingers[f].ema_tactiles[t] = 0.0;
     }
   }
-
   baseline = true;
   RCLCPP_INFO(logger_, "Tactile-wise baseline ready.");
 
@@ -172,13 +165,11 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& pressure) c
   if (info.total_force <= 1e-9) {
     return info;
   }
-
   // Calculate weighted center of pressure.
   for (int i = 0; i < tactiles_num; ++i) {
     info.cop_x += pressure[i] * tactile_xy_[i].first;
     info.cop_y += pressure[i] * tactile_xy_[i].second;
   }
-
   info.cop_x /= info.total_force;
   info.cop_y /= info.total_force;
 
@@ -209,7 +200,6 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& pressure) c
       info.x_right_cost = cost_x;
     }
   }
-
   // Calculate top/bottom correction cost from y-axis CoP.
   const double abs_y_ratio = std::fabs(info.cop_y_ratio);
 
@@ -225,7 +215,6 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& pressure) c
       info.y_bot_cost = cost_y;
     }
   }
-
   return info;
 }
 
@@ -233,7 +222,6 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
   if (info.total_force < param.min_force_correction) {
     return std::nullopt;
   }
-
   // Select left/right correction first.
   const double cost_x = std::max(info.x_left_cost, info.x_right_cost);
   if (cost_x >= param.cost_thres) {
@@ -243,7 +231,6 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
       return CorrectionDecision{CorrectionType::X_RIGHT, info.x_right_cost};
     }
   }
-
   // Select top/bottom correction.
   const double cost_y = std::max(info.y_top_cost, info.y_bot_cost);
   if (cost_y >= param.cost_thres) {
@@ -253,7 +240,6 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
       return CorrectionDecision{CorrectionType::Y_BOT, info.y_bot_cost};
     }
   }
-
   return std::nullopt;
 }
 

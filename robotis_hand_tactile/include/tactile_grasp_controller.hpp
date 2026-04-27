@@ -19,6 +19,9 @@ typedef std::array<double, 4> JointValueArray;
 
 class TactileCorrectionPlanner;
 
+/**
+ * @brief Base tactile grasp controller for CoP optimization and force regulation.
+ */
 class TactileGraspController : public rclcpp::Node {
 public:
   enum class State {
@@ -43,50 +46,158 @@ public:
    */
   void init_joints();
 
-  // State handlers
+  /**
+   * @brief IDLE state.
+   */
   void handle_idle();
+
+  /**
+   * @brief Close fingers until tactile contact is detected.
+   */
   void handle_close();
+
+  /**
+   * @brief Optimization grasping using tactile CoP feedback.
+   */
   void handle_hold();
 
-  // Force control
+  /**
+   * @brief Set desired force for each finger after contact detection.
+   */
   void set_desired_force();
+
+  /**
+   * @brief Regulate grasping force for one finger using tactile feedback.
+   */
   void regulate_grasp_force(int finger_idx);
 
-  // Joint command utilities
+  /**
+   * @brief Close one finger by a small step during HOLD state.
+   */
   void grasp_step_hold(int finger_idx, double step);
+
+  /**
+   * @brief Release one finger by a small step during HOLD state.
+   */
   void release_step_hold(int finger_idx, double step);
+
+  /**
+   * @brief Apply weighted joint step to selected local joints.
+   */
   void apply_ratio_step(int finger_idx,
                         const std::array<int, 3>& local_joint_ids,
                         const std::array<double, 3>& ratios,
                         double signed_step);
-  void shift_joint1(int finger_idx, double delta);
-  void shift_thumb_y(int finger_idx, double delta1, double delta2);
-  void grasp_234(int finger_idx, double step);
-  void release_234(int finger_idx, double step);
-  void reset_grasp();
-  void sync_targets();
-  bool all_contacted() const;
-  bool all_finger_contacted() const;
-  bool get_target(const std::string& joint_name, double& target) const;
-  double get_joint_pos(const std::string& joint_name) const;
-  double get_open_pos(const std::string& joint_name) const;
-  double clamp(double v, double min_v, double max_v) const;
 
+  /**
+   * @brief Shift each finger joint1 for lateral finger correction.
+   */
+  void shift_joint(int finger_idx, double delta);
+
+  /**
+   * @brief Shift thumb lateral correction.
+   */
+  void shift_thumb(int finger_idx, double delta1, double delta2);
+
+  /**
+   * @brief Close joints 2, 3, and 4 with weighted ratios.
+   */
+  void grasp_joint(int finger_idx, double step);
+
+  /**
+   * @brief Release joints 2, 3, and 4 with weighted ratios.
+   */
+  void release_joint(int finger_idx, double step);
+
+  /**
+   * @brief Reset contact states, correction plans, and target joints.
+   */
+  void reset_grasp();
+
+  /**
+   * @brief Synchronize target joints with current joint states.
+   */
+  void sync_targets();
+
+  /**
+   * @brief Check whether all fingers have detected contact.
+   */
+  bool all_contacted() const;
+
+  /**
+   * @brief Check whether all active fingers satisfy the target contact force.
+   */
+  bool all_finger_contacted() const;
+
+  /**
+   * @brief Get contact threshold for each finger.
+   */
   double finger_contact_threshold(int finger_idx) const;
+
+  /**
+   * @brief Calculate force-dependent step scale for each finger.
+   */
   double finger_step_scale(int finger_idx) const;
+
+  /**
+   * @brief Get maximum filtered force among active fingers.
+   */
   double max_filtered_force() const;
 
-  // IK
-  bool correction_ik(int finger_idx, bool forward_y);
+  /**
+   * @brief Apply planar IK correction for fingertip motion.
+   */
+  bool correction_ik(int finger_idx, bool forward_z);
+
+  /**
+   * @brief Get planar IK joint values for joints 2, 3, and 4.
+   */
   std::array<double, 3> get_planar_q(int finger_idx) const;
+
+  /**
+   * @brief Set planar IK joint values for joints 2, 3, and 4.
+   */
   void set_planar_q(int finger_idx, const std::array<double, 3>& q);
 
-  // Unused finger handling
+  /**
+   * @brief Check whether the finger is configured as unused.
+   */
   bool unused_finger(int finger_idx) const;
+
+  /**
+   * @brief Move unused fingers to the closed posture.
+   */
   void close_unused_finger();
 
+  /**
+   * @brief Get target joint value by joint name.
+   */
+  bool get_target(const std::string& joint_name, double& target) const;
+
+  /**
+   * @brief Get current joint position by joint name.
+   */
+  double get_joint_pos(const std::string& joint_name) const;
+
+  /**
+   * @brief Get initial open position by joint name.
+   */
+  double get_open_pos(const std::string& joint_name) const;
+
+  /**
+   * @brief Clamp value between minimum and maximum.
+   */
+  double clamp(double v, double min_v, double max_v) const;
+
 protected:
+  /**
+   * @brief Publish current joint targets as a trajectory command.
+   */
   virtual void publish_traj() = 0;
+
+  /**
+   * @brief Select correction direction from tactile CoP information.
+   */
   virtual std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const = 0;
 
 protected:
@@ -98,7 +209,7 @@ protected:
   std::unique_ptr<FingerPlanarIk> finger_planar_ik_;
   std::unique_ptr<TactileCorrectionPlanner> correction_planner_;
 
-  // Finger and joint states
+  // Hand joint states
   FingerArray fingers_;
   CorrectionPlanArray correction_plans_;
   std::array<double, fingers_num> desired_force_;
@@ -110,7 +221,6 @@ protected:
   // Controller state
   State state_{State::IDLE};
   HoldCorrectionStage hold_correction_stage_{HoldCorrectionStage::X_FIRST};
-
   bool joint_received_ = false;
 
   // Force control
@@ -124,7 +234,7 @@ protected:
   double regrasp_step_ = 0.02;
 
   // Finger step scaling
-  double min_step_scale_ = 0.3; // 이것도 없어도 되는지 확인
+  double min_step_scale_ = 0.3;
   double max_step_scale_ = 1.0;
 
   std::array<bool, fingers_num> y_ik_failed_{false, false, false, false, false};

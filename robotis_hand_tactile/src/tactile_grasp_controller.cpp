@@ -6,12 +6,12 @@
 namespace robotis_hand_tactile {
 
 TactileGraspController::TactileGraspController(const std::string& node_name) : Node(node_name) {
-  // Init_hx5d20
+  // Initialize HX5-D20 hand model.
   fingers_ = robotis_hand_tactile::init_fingers();
   hand_joint_names_ = robotis_hand_tactile::init_joint_names();
   init_positions_ = robotis_hand_tactile::init_positions();
 
-  // IK init_Setting
+  // Initialize planar IK models.
   std::array<FingerPlanarIk::FingerModel, 4> ik_models{};
   for (int i = 0; i < 4; ++i) {
     const int finger_idx = i + 1; // index=1, middle=2, ring=3, little=4
@@ -22,13 +22,13 @@ TactileGraspController::TactileGraspController(const std::string& node_name) : N
     ik_models[i].joint_max = {
         fingers_[finger_idx].joint_max[1], fingers_[finger_idx].joint_max[2], fingers_[finger_idx].joint_max[3]};
 
-    // link
+    // Link length
     ik_models[i].link_lengths = {0.0235, 0.0355, 0.0355};
   }
-
   finger_planar_ik_ = std::make_unique<FingerPlanarIk>(ik_models);
   correction_planner_ = std::make_unique<TactileCorrectionPlanner>(*this);
 
+  // Initialize target joints with open positions.
   for (auto& finger : fingers_) {
     for (int j = 0; j < 4; ++j) {
       finger.current_joint_targets[j] = get_open_pos(finger.joint_names[j]);
@@ -52,6 +52,7 @@ void TactileGraspController::close_unused_finger() {
     }
     auto& finger = fingers_[i];
 
+    // Move unused fingers to the closed posture.
     for (int j = 1; j <= 3; ++j) {
       finger.current_joint_targets[j] += param.close_step * 3;
       finger.current_joint_targets[j] =
@@ -78,7 +79,7 @@ void TactileGraspController::handle_close() {
     }
 
     if (!finger.contact_detected) {
-      // thumb
+      // Thumb closes using joint3 and joint4.
       if (i == 0) {
         for (int j = 2; j <= 3; ++j) {
           finger.current_joint_targets[j] += param.close_step;
@@ -86,7 +87,7 @@ void TactileGraspController::handle_close() {
               clamp(finger.current_joint_targets[j], finger.joint_min[j], finger.joint_max[j]);
         }
       }
-      // other
+      // Other fingers close using joint2, joint3, and joint4.
       else {
         for (int j = 1; j <= 3; ++j) {
           finger.current_joint_targets[j] += param.close_step;
@@ -95,6 +96,7 @@ void TactileGraspController::handle_close() {
         }
       }
 
+      // Detect initial tactile contact.
       if (finger.filtered_force >= finger_contact_threshold(i)) {
         finger.contact_detected = true;
         RCLCPP_INFO(
@@ -102,9 +104,9 @@ void TactileGraspController::handle_close() {
       }
     }
   }
-
   publish_traj();
 
+  // Switch to state:HOLD after all active fingers make contact.
   if (all_contacted()) {
     set_desired_force();
     state_ = State::HOLD;
@@ -127,13 +129,11 @@ void TactileGraspController::regulate_grasp_force(int finger_idx) {
     return;
   }
 
+  // Convert force error to joint delta.
   double dq = force_kp_ * error;
   dq = clamp(dq, -param.feedback_max_delta, param.feedback_max_delta);
+  dq *= finger_step_scale(finger_idx);
 
-  const double scale = finger_step_scale(finger_idx);
-  dq *= scale;
-
-  // check + -
   if (dq > 0.0) {
     grasp_step_hold(finger_idx, dq);
   } else if (dq < 0.0) {
@@ -145,6 +145,7 @@ void TactileGraspController::grasp_step_hold(int finger_idx, double step) {
   auto& finger = fingers_[finger_idx];
 
   if (finger_idx == 0) {
+    // Thumb force regulation uses joint3 and joint4.
     const std::array<int, 2> joints = {2, 3};
     const std::array<double, 2> ratios = {6.0, 4.0};
     const double sum = ratios[0] + ratios[1];
@@ -157,7 +158,6 @@ void TactileGraspController::grasp_step_hold(int finger_idx, double step) {
     }
     return;
   }
-
   apply_ratio_step(finger_idx, {1, 2, 3}, {5.0, 3.0, 2.0}, +step);
 }
 
@@ -165,6 +165,7 @@ void TactileGraspController::release_step_hold(int finger_idx, double step) {
   auto& finger = fingers_[finger_idx];
 
   if (finger_idx == 0) {
+    // Thumb force regulation uses joint3 and joint4.
     const std::array<int, 2> joints = {2, 3};
     const std::array<double, 2> ratios = {6.0, 4.0};
     const double sum = ratios[0] + ratios[1];
@@ -188,22 +189,23 @@ void TactileGraspController::handle_hold() {
       continue;
     }
 
+    // During the second stage, re-grasp first if the force is too low.
     if (hold_correction_stage_ == HoldCorrectionStage::Y_SECOND) {
       if (fingers_[i].filtered_force < param.regrasp_force * finger_contact_threshold(i)) {
         grasp_step_hold(i, regrasp_step_);
         continue;
       }
     }
-
+    // Maintain desired force and start a new CoP correction.
     regulate_grasp_force(i);
 
     if (!y_ik_failed_[i]) {
       correction_planner_->start_correction(i);
     }
   }
-
   publish_traj();
 
+  // Move from X correction stage to Y correction stage when X correction is blocked.
   if (hold_correction_stage_ == HoldCorrectionStage::X_FIRST) {
     if (correction_planner_->correction_blocked(HoldCorrectionStage::X_FIRST)) {
       hold_correction_stage_ = HoldCorrectionStage::Y_SECOND;
@@ -214,6 +216,7 @@ void TactileGraspController::handle_hold() {
       RCLCPP_INFO(this->get_logger(), "X correction done -> switch to Y correction");
     }
   } else {
+    // Finish HOLD when Y correction is blocked and force is satisfied.
     if (correction_planner_->correction_blocked(HoldCorrectionStage::Y_SECOND)) {
       if (all_finger_contacted()) {
         RCLCPP_INFO(this->get_logger(), "Y correction done + force satisfied -> IDLE");
@@ -243,7 +246,9 @@ void TactileGraspController::apply_ratio_step(int finger_idx,
 
 double TactileGraspController::max_filtered_force() const {
   double max_force = 0.0;
-  for (int i = 1; i < fingers_num; ++i) { // thumb 제외
+
+  // Exclude thumb from force scaling reference.
+  for (int i = 1; i < fingers_num; ++i) {
     max_force = std::max(max_force, fingers_[i].filtered_force);
   }
   return max_force;
@@ -253,18 +258,16 @@ double TactileGraspController::finger_step_scale(int finger_idx) const {
   if (finger_idx == 0) {
     return min_step_scale_;
   }
-
   const double f_max = max_filtered_force();
 
   if (f_max < 1e-6) {
     return 1.0;
   }
-
   const double ratio = fingers_[finger_idx].filtered_force / f_max;
   return clamp(ratio, min_step_scale_, max_step_scale_);
 }
 
-void TactileGraspController::shift_joint1(int finger_idx, double delta) {
+void TactileGraspController::shift_joint(int finger_idx, double delta) {
   auto& finger = fingers_[finger_idx];
   const int joint_idx = 0;
 
@@ -273,34 +276,32 @@ void TactileGraspController::shift_joint1(int finger_idx, double delta) {
       clamp(finger.current_joint_targets[joint_idx], finger.joint_min[joint_idx], finger.joint_max[joint_idx]);
 }
 
-void TactileGraspController::shift_thumb_y(int finger_idx, double delta1, double delta2) {
+void TactileGraspController::shift_thumb(int finger_idx, double delta1, double delta2) {
   auto& finger = fingers_[finger_idx];
-
   finger.current_joint_targets[0] += delta1 * 0.1;
   finger.current_joint_targets[1] += delta2 * 0.1;
 
   finger.current_joint_targets[0] = clamp(finger.current_joint_targets[0], finger.joint_min[0], finger.joint_max[0]);
-
   finger.current_joint_targets[1] = clamp(finger.current_joint_targets[1], finger.joint_min[1], finger.joint_max[1]);
 }
 
-void TactileGraspController::grasp_234(int finger_idx, double step) {
+void TactileGraspController::grasp_joint(int finger_idx, double step) {
   apply_ratio_step(finger_idx, {1, 2, 3}, {5.0, 3.0, 2.0}, +step);
 }
 
-void TactileGraspController::release_234(int finger_idx, double step) {
+void TactileGraspController::release_joint(int finger_idx, double step) {
   apply_ratio_step(finger_idx, {1, 2, 3}, {5.0, 3.0, 2.0}, -step);
 }
 
 void TactileGraspController::reset_grasp() {
+  // Reset contact states.
   for (auto& finger : fingers_) {
     finger.contact_detected = false;
   }
-
+  // Reset IK failure and correction plans.
   for (auto& failed : y_ik_failed_) {
     failed = false;
   }
-
   for (auto& plan : correction_plans_) {
     plan = CorrectionPlan{};
   }
@@ -313,7 +314,7 @@ void TactileGraspController::sync_targets() {
   if (!joint_received_) {
     return;
   }
-
+  // Start target values from the current joint states.
   for (auto& finger : fingers_) {
     for (int j = 0; j < 4; ++j) {
       finger.current_joint_targets[j] = get_joint_pos(finger.joint_names[j]);
@@ -355,8 +356,8 @@ void TactileGraspController::set_planar_q(int finger_idx, const std::array<doubl
   finger.current_joint_targets[3] = q[2];
 }
 
-bool TactileGraspController::correction_ik(int finger_idx, bool forward_y) {
-  // thumb 제외 : X_biod 진행 중에는 제외
+bool TactileGraspController::correction_ik(int finger_idx, bool forward_z) {
+  // Thumb does not use the planar IK correction.
   if (finger_idx == 0) {
     return false;
   }
@@ -364,13 +365,12 @@ bool TactileGraspController::correction_ik(int finger_idx, bool forward_y) {
   if (!joint_received_ || !finger_planar_ik_) {
     return false;
   }
-
   const int solver_idx = finger_idx - 1; // index=1 -> 0, ..., little=4 -> 3
   const auto current_q = get_planar_q(finger_idx);
 
-  // fingertip local +z / -z
+  // Shift fingertip along the local z-axis.
   const double local_dy = 0.0;
-  const double local_dz = forward_y ? 0.001 : -0.001; // 1mm * scale
+  const double local_dz = forward_z ? 0.001 : -0.001; // 1mm * scale
   const auto maybe_q = finger_planar_ik_->solve_shift_local(solver_idx, current_q, local_dy, local_dz);
 
   if (!maybe_q.has_value()) {
@@ -390,7 +390,6 @@ bool TactileGraspController::correction_ik(int finger_idx, bool forward_y) {
   if (changed) {
     set_planar_q(finger_idx, maybe_q.value());
   }
-
   return changed;
 }
 

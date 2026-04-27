@@ -19,6 +19,7 @@ FingerPlanarIk::Pose2D FingerPlanarIk::fk(int finger_idx, const std::array<doubl
   Pose2D pose{0.0, 0.0, 0.0};
   double angle = 0.0;
 
+  // Accumulate each link pose in the planar y-z frame.
   for (int i = 0; i < dof; ++i) {
     angle += q[i];
     pose.y += models_[finger_idx].link_lengths[i] * std::sin(angle);
@@ -35,22 +36,11 @@ void FingerPlanarIk::clamp_to_limits(int finger_idx, std::array<double, dof>& q)
   }
 }
 
-std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shift_yz(
-    int finger_idx, const std::array<double, dof>& current_q, double delta_y, double delta_z) const {
-  const Pose2D current_pose = fk(finger_idx, current_q);
-
-  Pose2D target = current_pose;
-  target.y += delta_y;
-  target.z += delta_z;
-
-  return solve_ik(finger_idx, target, current_q);
-}
-
 std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shift_local(
     int finger_idx, const std::array<double, dof>& current_q, double local_dy, double local_dz) const {
   const Pose2D current_pose = fk(finger_idx, current_q);
 
-  // fingertip local frame -> base yz plane
+  // Convert fingertip local frame displacement to the base y-z frame.
   const double c = std::cos(current_pose.theta);
   const double s = std::sin(current_pose.theta);
 
@@ -72,7 +62,8 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
   const double q2c = current_q[1];
   const double q3c = current_q[2];
 
-  // q3 = q3c + (q1-q1c) + (q2-q2c)
+  // Keep q3 coupled with q1 and q2 changes.
+  // q3 = q3c + (q1 - q1c) + (q2 - q2c)
   const double c = q3c - q1c - q2c;
 
   auto build_q = [&](double q1, double q2) {
@@ -96,7 +87,7 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
     ez = target.z - z;
   };
 
-  // low residual sol
+  // Try multiple seeds to avoid poor local solutions.
   const std::vector<std::array<double, 2>> seeds = {{q1c, q2c},
                                                     {q1c + 0.05, q2c},
                                                     {q1c - 0.05, q2c},
@@ -120,7 +111,7 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
       const double a2 = q1 + q2;
       const double a3 = 2.0 * (q1 + q2) + c;
 
-      // exact Jacobian for constrained model
+      // Exact Jacobian for the constrained planar model.
       const double j11 = l1 * std::cos(a1) + l2 * std::cos(a2) + 2.0 * l3 * std::cos(a3);
       const double j12 = l2 * std::cos(a2) + 2.0 * l3 * std::cos(a3);
 
@@ -132,13 +123,14 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
         break;
       }
 
-      // Newton step: J * dq = e
+      // Newton update: J * dq = error.
       const double dq1 = (j22 * ey - j12 * ez) / det;
       const double dq2 = (-j21 * ey + j11 * ez) / det;
 
       q1 += dq1;
       q2 += dq2;
 
+      // Keep the solution inside joint limits at each iteration.
       auto q_tmp = build_q(q1, q2);
       clamp_to_limits(finger_idx, q_tmp);
       q1 = q_tmp[0];
@@ -148,17 +140,15 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
     auto q_candidate = build_q(q1, q2);
     clamp_to_limits(finger_idx, q_candidate);
 
-    // limit clamp 이후 residual checks
-    double ey = 0.0, ez = 0.0;
+    // Evaluate candidate after joint limit clamping.
     const auto p_chk = fk(finger_idx, q_candidate);
-    ey = target.y - p_chk.y;
-    ez = target.z - p_chk.z;
-
+    double ey = target.y - p_chk.y;
+    double ez = target.z - p_chk.z;
     const double pos_err = std::sqrt(ey * ey + ez * ez);
     const double joint_change =
         std::abs(q_candidate[0] - q1c) + std::abs(q_candidate[1] - q2c) + std::abs(q_candidate[2] - q3c);
 
-    // best_path: low residual + low regularization
+    // Prefer low residual and smaller joint motion.
     const double cost = pos_err + 0.01 * joint_change;
 
     if (cost < best_cost) {
@@ -171,7 +161,7 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
     return std::nullopt;
   }
 
-  // too far : failed
+  // Reject the solution if the final position error is too large.
   const auto p_final = fk(finger_idx, *best_q);
   const double final_err =
       std::sqrt((target.y - p_final.y) * (target.y - p_final.y) + (target.z - p_final.z) * (target.z - p_final.z));

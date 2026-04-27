@@ -28,6 +28,9 @@ typedef std_msgs::msg::Int32::SharedPtr Int32Ptr;
 typedef trajectory_msgs::msg::JointTrajectory JointTrajectoryMsg;
 typedef robotis_hand_tactile::FingerArray FingerArrayMsg;
 
+/**
+ * @brief Force maintenance grasp controller using tactile feedback.
+ */
 class TactileGraspController : public rclcpp::Node {
 public:
   static constexpr int fingers_num = robotis_hand_tactile::fingers_num;
@@ -41,35 +44,105 @@ public:
   TactileGraspController();
 
 private:
+  /**
+   * @brief Handle tactile pressure message.
+   */
   void pressure_callback(const HandPressuresPtr msg);
+
+  /**
+   * @brief Handle joint state message.
+   */
   void joint_state_callback(const JointStatePtr msg);
+
+  /**
+   * @brief Handle grasp state command.
+   */
   void grasp_state_callback(const Int32Ptr msg);
 
+  /**
+   * @brief Main controller loop.
+   */
   void control_loop();
 
+  /**
+   * @brief IDLE state.
+   */
   void handle_idle();
+
+  /**
+   * @brief Close fingers until tactile contact is detected.
+   */
   void handle_close();
+
+  /**
+   * @brief Maintain desired grasp force using tactile feedback.
+   */
   void handle_hold();
 
+  /**
+   * @brief Reset contact and target force states before grasping.
+   */
   void reset_grasp();
+
+  /**
+   * @brief Set desired force after initial contact.
+   */
   void set_desired_force();
+
+  /**
+   * @brief Publish current joint targets as JointTrajectory.
+   */
   void publish_traj();
+
+  /**
+   * @brief Synchronize target joint values with current joint states.
+   */
   void sync_targets();
 
-  bool all_contacted() const;
-  bool get_target(const std::string& joint_name, double& target) const;
-
-  double get_open_pos(const std::string& joint_name) const;
+  /**
+   * @brief Apply deadband to small force errors to prevent jitter.
+   */
   double apply_deadband(double error) const;
-  double clamp(double value, double min_v, double max_v) const;
-  double get_joint_pos(const std::string& joint_name) const;
+
+  /**
+   * @brief Check whether all fingers have detected contact.
+   */
+  bool all_contacted() const;
+
+  /**
+   * @brief Get contact threshold for each finger.
+   */
   double finger_contact_threshold(int finger_idx) const;
 
-  // not use finger
+  /**
+   * @brief Check whether the finger is configured as unused.
+   */
   bool unused_finger(int finger_idx) const;
+
+  /**
+   * @brief Move unused fingers to the closed posture.
+   */
   void close_unused_finger();
 
-  std::string state_to_string(State s) const;
+  /**
+   * @brief Get target joint value by joint name.
+   */
+  bool get_target(const std::string& joint_name, double& target) const;
+
+  /**
+   * @brief Get current joint position by joint name.
+   */
+  double get_joint_pos(const std::string& joint_name) const;
+
+  /**
+   * @brief Get initial open position by joint name.
+   */
+  double get_open_pos(const std::string& joint_name) const;
+
+  /**
+   * @brief Clamp value between minimum and maximum.
+   */
+  double clamp(double v, double min_v, double max_v) const;
 
 private:
   rclcpp::Subscription<HandPressuresMsg>::SharedPtr pressure_sub_;
@@ -78,27 +151,31 @@ private:
   rclcpp::Publisher<JointTrajectoryMsg>::SharedPtr traj_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
   rclcpp::TimerBase::SharedPtr unused_finger_timer_;
+
+  // Parameters
   robotis_hand_tactile::Params param;
 
+  // Tactile processing
   robotis_hand_tactile::TactileSensor tactile_sensor_;
+  bool baseline_ = false;
 
+  // Thread lock
   std::mutex mutex_;
 
+  // Hand joint states
   FingerArrayMsg fingers_;
-
-  std::array<double, fingers_num> contact_force_;
-  std::array<double, fingers_num> desired_force_;
-  std::array<double, fingers_num> prev_filtered_force_;
-
   std::vector<std::string> hand_joint_names_;
   std::vector<double> init_positions_;
   std::map<std::string, double> curr_joint_;
 
+  // Force states
+  std::array<double, fingers_num> contact_force_;
+  std::array<double, fingers_num> desired_force_;
+  std::array<double, fingers_num> prev_filtered_force_;
+
   // Controller state
   State state_{State::IDLE};
-
   bool joint_state_received_ = false;
-  bool baseline_ = false;
 
   // Force control
   double force_kp_ = 0.002; // Force feedback gain
