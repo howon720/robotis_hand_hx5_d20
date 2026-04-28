@@ -23,17 +23,17 @@
 #include <string>
 #include <vector>
 
+#include "hx5d20_struct.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "tactile_sensor.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
-#include "hx5d20_struct.h"
-#include "tactile_sensor.hpp"
-
-namespace robotis_hand_tactile_hold {
+namespace robotis_hand_tactile_hold
+{
 
 typedef robotis_interfaces::msg::HandPressures HandPressuresMsg;
 typedef robotis_interfaces::msg::HandPressures::SharedPtr HandPressuresPtr;
@@ -51,7 +51,8 @@ class TactileHoldController : public rclcpp::Node {
 public:
   static constexpr int fingers_num = robotis_hand_tactile::fingers_num;
 
-  enum class State {
+  enum class State
+  {
     IDLE,
     CLOSE,
     HOLD
@@ -148,17 +149,17 @@ private:
   /**
    * @brief Get target joint value by joint name.
    */
-  bool get_target(const std::string& joint_name, double& target) const;
+  bool get_target(const std::string & joint_name, double & target) const;
 
   /**
    * @brief Get current joint position by joint name.
    */
-  double get_joint_pos(const std::string& joint_name) const;
+  double get_joint_pos(const std::string & joint_name) const;
 
   /**
    * @brief Get initial open position by joint name.
    */
-  double get_open_pos(const std::string& joint_name) const;
+  double get_open_pos(const std::string & joint_name) const;
 
   /**
    * @brief Clamp value between minimum and maximum.
@@ -199,9 +200,9 @@ private:
   bool joint_state_received_ = false;
 
   // Force control
-  double force_kp_ = 0.002; // Force feedback gain
-  double deadband = 5.0;    // Deadband for small force errors
+  double force_kp_ = 0.002;  // Force feedback gain
+  double deadband = 5.0;     // Deadband for small force errors
   double reactive_step_ = 0.02;
 };
 
-} // namespace robotis_hand_tactile_hold
+}  // namespace robotis_hand_tactile_hold

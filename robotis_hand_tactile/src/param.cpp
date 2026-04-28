@@ -14,12 +14,13 @@
 //
 // Author: Howon Kim
 
-#include "param.h"
+#include "param.hpp"
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
-void declare_params(rclcpp::Node* node) {
-
+void declare_params(rclcpp::Node * node)
+{
   // Common control parameters
   node->declare_parameter<double>("control_hz", 20.0);
   node->declare_parameter<double>("trajectory_dt", 0.05);
@@ -42,7 +43,8 @@ void declare_params(rclcpp::Node* node) {
   node->declare_parameter<double>("regrasp_force", 3.0);
 }
 
-Params load_params(rclcpp::Node* node) {
+Params load_params(rclcpp::Node * node)
+{
   Params p;
 
   // Common control parameters
@@ -57,7 +59,7 @@ Params load_params(rclcpp::Node* node) {
   p.un_use_finger.clear();
   for (const auto value : un_use_finger_tmp) {
     if (value == 0) {
-      continue; // NONE
+      continue;  // NONE
     }
     const int finger_idx = static_cast<int>(value - 1);
     if (finger_idx >= 0 && finger_idx < 5) {
@@ -81,4 +83,4 @@ Params load_params(rclcpp::Node* node) {
   return p;
 }
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

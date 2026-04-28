@@ -18,9 +18,10 @@
 
 #include <string>
 
-#include "hx5d20_struct.h"
+#include "hx5d20_struct.hpp"
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
 class TactileGraspController;
 
@@ -29,7 +30,7 @@ class TactileGraspController;
  */
 class TactileCorrectionPlanner {
 public:
-  explicit TactileCorrectionPlanner(TactileGraspController& controller);
+  explicit TactileCorrectionPlanner(TactileGraspController & controller);
 
   /**
    * @brief Start a correction plan if tactile CoP correction is required.
@@ -44,17 +45,17 @@ public:
   /**
    * @brief Run one step of the active correction plan.
    */
-  bool run_correction(int finger_idx, CorrectionPlan& plan);
+  bool run_correction(int finger_idx, CorrectionPlan & plan);
 
   /**
    * @brief Run one step of lateral x-axis correction motion.
    */
-  bool run_x_correction(int finger_idx, CorrectionPlan& plan, int direction);
+  bool run_x_correction(int finger_idx, CorrectionPlan & plan, int direction);
 
   /**
    * @brief Run one step of y-axis fingertip correction using planar IK.
    */
-  bool run_y_correction(int finger_idx, CorrectionPlan& plan, bool forward_y);
+  bool run_y_correction(int finger_idx, CorrectionPlan & plan, bool forward_y);
 
   /**
    * @brief Check whether the correction motion can move within joint limits.
@@ -83,7 +84,7 @@ public:
 
 private:
   // Controller reference used to access finger states and motion utilities.
-  TactileGraspController& controller_;
+  TactileGraspController & controller_;
 };
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

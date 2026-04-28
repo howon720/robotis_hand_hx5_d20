@@ -20,18 +20,22 @@
 #include <cmath>
 #include <numeric>
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
-TactileSensor::TactileSensor(const rclcpp::Logger& logger, const rclcpp::Clock::SharedPtr& clock)
-    : logger_(logger), clock_(clock) {
+TactileSensor::TactileSensor(const rclcpp::Logger & logger, const rclcpp::Clock::SharedPtr & clock)
+: logger_(logger), clock_(clock)
+{
   init_tactiles();
 }
 
-void TactileSensor::set_params(const robotis_hand_tactile::Params& params) {
+void TactileSensor::set_params(const robotis_hand_tactile::Params & params)
+{
   param = params;
 }
 
-void TactileSensor::init_tactiles() {
+void TactileSensor::init_tactiles()
+{
   const double x_offset = tactile_x_ / 3.0;
   const double y_offset = tactile_y_ / 3.0;
 
@@ -46,7 +50,8 @@ void TactileSensor::init_tactiles() {
   }
 }
 
-bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
+bool TactileSensor::check_msg(const HandPressuresPtr msg) const
+{
   if (msg->sensors.size() != fingers_num) {
     RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "sensors size mismatch: %zu", msg->sensors.size());
     return false;
@@ -54,28 +59,29 @@ bool TactileSensor::check_msg(const HandPressuresPtr msg) const {
   for (size_t i = 0; i < msg->sensors.size(); ++i) {
     if (msg->sensors[i].pressure_names.size() != tactiles_num) {
       RCLCPP_WARN_THROTTLE(logger_,
-                           *clock_,
-                           2000,
-                           "sensor[%zu] pressure_names size mismatch: %zu",
-                           i,
-                           msg->sensors[i].pressure_names.size());
+        *clock_,
+        2000,
+        "sensor[%zu] pressure_names size mismatch: %zu",
+        i,
+        msg->sensors[i].pressure_names.size());
       return false;
     }
 
     if (msg->sensors[i].pressure_values.size() != tactiles_num) {
       RCLCPP_WARN_THROTTLE(logger_,
-                           *clock_,
-                           2000,
-                           "sensor[%zu] pressure_values size mismatch: %zu",
-                           i,
-                           msg->sensors[i].pressure_values.size());
+        *clock_,
+        2000,
+        "sensor[%zu] pressure_values size mismatch: %zu",
+        i,
+        msg->sensors[i].pressure_values.size());
       return false;
     }
   }
   return true;
 }
 
-SensorArray TactileSensor::parse_sensors(const HandPressuresPtr msg) const {
+SensorArray TactileSensor::parse_sensors(const HandPressuresPtr msg) const
+{
   SensorArray out{};
 
   // Copy tactile sensor names and 3x3 pressure values.
@@ -90,7 +96,9 @@ SensorArray TactileSensor::parse_sensors(const HandPressuresPtr msg) const {
   return out;
 }
 
-bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
+bool TactileSensor::update_baseline(
+  FingerArray & fingers, bool & baseline, const SensorArray & sensors)
+{
   if (baseline) {
     return false;
   }
@@ -118,7 +126,8 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
     const int count = std::max(1, fingers[f].baseline_samples);
 
     for (int t = 0; t < tactiles_num; ++t) {
-      fingers[f].baseline_tactiles[t] = fingers[f].baseline_sum_tactiles[t] / static_cast<double>(count);
+      fingers[f].baseline_tactiles[t] =
+        fingers[f].baseline_sum_tactiles[t] / static_cast<double>(count);
       fingers[f].ema_tactiles[t] = 0.0;
     }
   }
@@ -128,7 +137,9 @@ bool TactileSensor::update_baseline(FingerArray& fingers, bool& baseline, const 
   return true;
 }
 
-PressureArray TactileSensor::filter_pressure(FingerData& finger, const Hx5d20SensorData& sensor) const {
+PressureArray TactileSensor::filter_pressure(
+  FingerData & finger, const Hx5d20SensorData & sensor) const
+{
   PressureArray filtered{};
 
   for (int t = 0; t < tactiles_num; ++t) {
@@ -148,11 +159,14 @@ PressureArray TactileSensor::filter_pressure(FingerData& finger, const Hx5d20Sen
   return filtered;
 }
 
-double TactileSensor::calc_total_force(const PressureArray& pressure) const {
+double TactileSensor::calc_total_force(const PressureArray & pressure) const
+{
   return std::accumulate(pressure.begin(), pressure.end(), 0.0);
 }
 
-void TactileSensor::update_finger_state(int finger_idx, FingerData& finger, const Hx5d20SensorData& sensor) const {
+void TactileSensor::update_finger_state(
+  int finger_idx, FingerData & finger, const Hx5d20SensorData & sensor) const
+{
   const auto filtered = filter_pressure(finger, sensor);
   const double total_force = calc_total_force(filtered);
 
@@ -163,7 +177,9 @@ void TactileSensor::update_finger_state(int finger_idx, FingerData& finger, cons
   finger.cop = calc_cop(finger_idx, filtered);
 }
 
-void TactileSensor::update_pressure(FingerArray& fingers, bool& baseline, const SensorArray& sensors) {
+void TactileSensor::update_pressure(
+  FingerArray & fingers, bool & baseline, const SensorArray & sensors)
+{
   if (update_baseline(fingers, baseline, sensors)) {
     return;
   }
@@ -173,7 +189,8 @@ void TactileSensor::update_pressure(FingerArray& fingers, bool& baseline, const 
   }
 }
 
-CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& pressure) const {
+CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray & pressure) const
+{
   CopInfo info;
   info.pressure = pressure;
   info.total_force = calc_total_force(pressure);
@@ -234,7 +251,8 @@ CopInfo TactileSensor::calc_cop(int finger_idx, const PressureArray& pressure) c
   return info;
 }
 
-std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& info) const {
+std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo & info) const
+{
   if (info.total_force < param.min_force_correction) {
     return std::nullopt;
   }
@@ -259,8 +277,9 @@ std::optional<CorrectionDecision> TactileSensor::pick_correction(const CopInfo& 
   return std::nullopt;
 }
 
-double TactileSensor::clamp(double v, double min_v, double max_v) const {
+double TactileSensor::clamp(double v, double min_v, double max_v) const
+{
   return std::max(min_v, std::min(v, max_v));
 }
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

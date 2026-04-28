@@ -24,6 +24,7 @@
 #include <mutex>
 #include <numeric>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <geometry_msgs/msg/point.hpp>
@@ -51,7 +52,8 @@ private:
   /**
    * @brief Direction region classified from tactile CoP.
    */
-  enum DirectionRegion {
+  enum DirectionRegion
+  {
     CENTER = 0,
     UP = 1,
     DOWN = 2,
@@ -62,7 +64,8 @@ private:
   /**
    * @brief Tactile force direction information for one finger.
    */
-  struct DirectionInfo {
+  struct DirectionInfo
+  {
     double total_force{0.0};
     double cop_x{0.0};
     double cop_y{0.0};
@@ -89,22 +92,22 @@ private:
   /**
    * @brief Convert tactile sensor name to finger index.
    */
-  int finger_index_from_sensor(const std::string& sensor_name) const;
+  int finger_index_from_sensor(const std::string & sensor_name) const;
 
   /**
    * @brief Extract pressure values from tactile sensor message.
    */
-  std::vector<double> extract_pressures(const TactileSensor& sensor_msg) const;
+  std::vector<double> extract_pressures(const TactileSensor & sensor_msg) const;
 
   /**
    * @brief Accumulate tactile baseline samples.
    */
-  void accumulate_baseline(int finger_idx, const std::vector<double>& vals);
+  void accumulate_baseline(int finger_idx, const std::vector<double> & vals);
 
   /**
    * @brief Update filtered tactile pressure after baseline compensation.
    */
-  void update_pressure(int finger_idx, const std::vector<double>& vals);
+  void update_pressure(int finger_idx, const std::vector<double> & vals);
 
   /**
    * @brief Finalize tactile baseline values.
@@ -114,17 +117,18 @@ private:
   /**
    * @brief Compute total tactile force from pressure values.
    */
-  double compute_total_force(const std::vector<double>& p) const;
+  double compute_total_force(const std::vector<double> & p) const;
 
   /**
    * @brief Map sensor-frame vector to each finger link frame.
    */
-  std::array<double, 3> map_sensor_vector_to_link(int finger_idx, double sx, double sy, double sn) const;
+  std::array<double, 3> map_sensor_vector_to_link(
+    int finger_idx, double sx, double sy, double sn) const;
 
   /**
    * @brief Compute RViz force arrow vector from tactile pressure.
    */
-  std::array<double, 3> compute_force_vector(int finger_idx, const std::vector<double>& p) const;
+  std::array<double, 3> compute_force_vector(int finger_idx, const std::vector<double> & p) const;
 
   /**
    * @brief Get marker color for each finger.
@@ -134,22 +138,23 @@ private:
   /**
    * @brief Compute tactile direction information for one finger.
    */
-  DirectionInfo compute_direction_info(int finger_idx, const std::vector<double>& p) const;
+  DirectionInfo compute_direction_info(int finger_idx, const std::vector<double> & p) const;
 
   /**
    * @brief Convert CoP position to marker point in finger frame.
    */
-  geometry_msgs::msg::Point cop_point_in_frame(int finger_idx, const DirectionInfo& info) const;
+  geometry_msgs::msg::Point cop_point_in_frame(int finger_idx, const DirectionInfo & info) const;
 
   /**
    * @brief Create force arrow marker.
    */
-  visualization_msgs::msg::Marker make_arrow_marker(int finger_idx, const DirectionInfo& info) const;
+  visualization_msgs::msg::Marker make_arrow_marker(
+    int finger_idx, const DirectionInfo & info) const;
 
   /**
    * @brief Create CoP sphere marker.
    */
-  visualization_msgs::msg::Marker make_cop_marker(int finger_idx, const DirectionInfo& info) const;
+  visualization_msgs::msg::Marker make_cop_marker(int finger_idx, const DirectionInfo & info) const;
 
 private:
   // Input and output topics

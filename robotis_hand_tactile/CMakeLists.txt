@@ -26,7 +26,7 @@ set(ROS2_PACKAGES
     trajectory_msgs
     robotis_interfaces)
 
-add_executable(tactile_force_rviz 
+add_executable(tactile_force_rviz
               src/tactile_force_rviz.cpp)
 target_include_directories(tactile_force_rviz PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -35,7 +35,7 @@ ament_target_dependencies(tactile_force_rviz ${ROS2_PACKAGES})
 install(TARGETS tactile_force_rviz
         DESTINATION lib/${PROJECT_NAME})
 
-add_executable(tactile_grasp_controller_node 
+add_executable(tactile_grasp_controller_node
               src/tactile_grasp_controller_node.cpp
               src/tactile_grasp_controller.cpp
               src/tactile_sensor.cpp
@@ -50,7 +50,7 @@ ament_target_dependencies(tactile_grasp_controller_node ${ROS2_PACKAGES})
 install(TARGETS tactile_grasp_controller_node
         DESTINATION lib/${PROJECT_NAME})
 
-add_executable(tactile_hold_controller 
+add_executable(tactile_hold_controller
               src/tactile_hold_controller.cpp
               src/tactile_sensor.cpp
               src/hx5d20_init.cpp

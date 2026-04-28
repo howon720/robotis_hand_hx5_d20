@@ -20,10 +20,12 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
 // Parameters used by tactile grasp controllers.
-struct Params {
+struct Params
+{
   // Common control parameters
   double control_hz = 20.0;
   double trajectory_dt = 0.05;
@@ -49,10 +51,10 @@ struct Params {
 /**
  * @brief Declare ROS 2 parameters.
  */
-void declare_params(rclcpp::Node* node);
+void declare_params(rclcpp::Node * node);
 /**
  * @brief Load ROS 2 parameters.
  */
-Params load_params(rclcpp::Node* node);
+Params load_params(rclcpp::Node * node);
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

@@ -23,14 +23,14 @@
 #include <string>
 #include <vector>
 
-#include "rclcpp/rclcpp.hpp"
-
 #include "finger_ik_solver.hpp"
 #include "hx5d20_init.hpp"
-#include "hx5d20_struct.h"
-#include "param.h"
+#include "hx5d20_struct.hpp"
+#include "param.hpp"
+#include "rclcpp/rclcpp.hpp"
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 typedef std::array<double, 4> JointValueArray;
 
 class TactileCorrectionPlanner;
@@ -40,7 +40,8 @@ class TactileCorrectionPlanner;
  */
 class TactileGraspController : public rclcpp::Node {
 public:
-  enum class State {
+  enum class State
+  {
     IDLE,
     CLOSE,
     HOLD
@@ -49,7 +50,7 @@ public:
   /**
    * @brief Construct tactile grasp controller.
    */
-  explicit TactileGraspController(const std::string& node_name = "tactile_grasp_controller");
+  explicit TactileGraspController(const std::string & node_name = "tactile_grasp_controller");
   virtual ~TactileGraspController();
 
   /**
@@ -100,10 +101,11 @@ public:
   /**
    * @brief Apply weighted joint step to selected local joints.
    */
-  void apply_ratio_step(int finger_idx,
-                        const std::array<int, 3>& local_joint_ids,
-                        const std::array<double, 3>& ratios,
-                        double signed_step);
+  void apply_ratio_step(
+    int finger_idx,
+    const std::array<int, 3> & local_joint_ids,
+    const std::array<double, 3> & ratios,
+    double signed_step);
 
   /**
    * @brief Shift each finger joint1 for lateral finger correction.
@@ -178,7 +180,7 @@ public:
   /**
    * @brief Set planar IK joint values for joints 2, 3, and 4.
    */
-  void set_planar_q(int finger_idx, const std::array<double, 3>& q);
+  void set_planar_q(int finger_idx, const std::array<double, 3> & q);
 
   /**
    * @brief Check whether the finger is configured as unused.
@@ -193,17 +195,17 @@ public:
   /**
    * @brief Get target joint value by joint name.
    */
-  bool get_target(const std::string& joint_name, double& target) const;
+  bool get_target(const std::string & joint_name, double & target) const;
 
   /**
    * @brief Get current joint position by joint name.
    */
-  double get_joint_pos(const std::string& joint_name) const;
+  double get_joint_pos(const std::string & joint_name) const;
 
   /**
    * @brief Get initial open position by joint name.
    */
-  double get_open_pos(const std::string& joint_name) const;
+  double get_open_pos(const std::string & joint_name) const;
 
   /**
    * @brief Clamp value between minimum and maximum.
@@ -219,7 +221,7 @@ protected:
   /**
    * @brief Select correction direction from tactile CoP information.
    */
-  virtual std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const = 0;
+  virtual std::optional<CorrectionDecision> pick_correction(const CopInfo & info) const = 0;
 
 protected:
   // Parameters
@@ -245,8 +247,8 @@ protected:
   bool joint_received_ = false;
 
   // Force control
-  double force_kp_ = 0.002; // Force feedback gain
-  double deadband = 5.0;    // Deadband for small force errors
+  double force_kp_ = 0.002;  // Force feedback gain
+  double deadband = 5.0;     // Deadband for small force errors
 
   // CoP correction
   int phase_step_ = 4;
@@ -261,4 +263,4 @@ protected:
   std::array<bool, fingers_num> y_ik_failed_{false, false, false, false, false};
 };
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

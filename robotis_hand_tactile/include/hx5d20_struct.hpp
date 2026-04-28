@@ -20,7 +20,8 @@
 #include <string>
 #include <vector>
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
 // HX5-D20 hand constants
 constexpr int fingers_num = 5;
@@ -31,7 +32,8 @@ typedef std::array<double, tactiles_num> PressureArray;
 /**
  * @brief Tactile correction direction selected from CoP error.
  */
-enum class CorrectionType {
+enum class CorrectionType
+{
   NONE,
   Y_TOP,
   Y_BOT,
@@ -42,7 +44,8 @@ enum class CorrectionType {
 /**
  * @brief Correction stage used in HOLD state.
  */
-enum class HoldCorrectionStage {
+enum class HoldCorrectionStage
+{
   X_FIRST,
   Y_SECOND
 };
@@ -50,7 +53,8 @@ enum class HoldCorrectionStage {
 /**
  * @brief CoP-based correction decision.
  */
-struct CorrectionDecision {
+struct CorrectionDecision
+{
   CorrectionType type{CorrectionType::NONE};
   double cost = 0.0;
 };
@@ -58,7 +62,8 @@ struct CorrectionDecision {
 /**
  * @brief Multi-step correction plan for one finger.
  */
-struct CorrectionPlan {
+struct CorrectionPlan
+{
   bool active = false;
   CorrectionType type{CorrectionType::NONE};
   int phase = 0;
@@ -70,7 +75,8 @@ typedef std::array<CorrectionPlan, fingers_num> CorrectionPlanArray;
 /**
  * @brief Tactile center-of-pressure information.
  */
-struct CopInfo {
+struct CopInfo
+{
   std::array<double, tactiles_num> pressure{};
   double total_force = 0.0;
 
@@ -89,7 +95,8 @@ struct CopInfo {
 /**
  * @brief Per-finger joint and tactile state.
  */
-struct FingerData {
+struct FingerData
+{
   std::string name;
 
   std::array<std::string, joints_per_finger> joint_names{};
@@ -112,11 +119,12 @@ typedef std::array<FingerData, fingers_num> FingerArray;
 /**
  * @brief Parsed tactile sensor data for one finger.
  */
-struct Hx5d20SensorData {
+struct Hx5d20SensorData
+{
   std::string name;
   std::array<std::string, tactiles_num> labels{};
   std::array<double, tactiles_num> values{};
 };
 typedef std::array<Hx5d20SensorData, fingers_num> SensorArray;
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

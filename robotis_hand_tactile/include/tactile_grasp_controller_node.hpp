@@ -22,13 +22,13 @@
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "tactile_grasp_controller.hpp"
+#include "tactile_sensor.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
-#include "tactile_grasp_controller.hpp"
-#include "tactile_sensor.hpp"
-
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
 typedef robotis_interfaces::msg::HandPressures HandPressuresMsg;
 typedef robotis_interfaces::msg::HandPressures::SharedPtr HandPressuresPtr;
@@ -75,7 +75,7 @@ private:
   /**
    * @brief Select correction direction using tactile sensor CoP information.
    */
-  std::optional<CorrectionDecision> pick_correction(const CopInfo& info) const override;
+  std::optional<CorrectionDecision> pick_correction(const CopInfo & info) const override;
 
 private:
   // Thread lock
@@ -94,4 +94,4 @@ private:
   bool baseline_ = false;
 };
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile

@@ -15,23 +15,29 @@
 // Author: Howon Kim
 
 #include "finger_ik_solver.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
 
-namespace robotis_hand_tactile {
+namespace robotis_hand_tactile
+{
 
-namespace {
-double clamp_value(double v, double lo, double hi) {
+namespace
+{
+double clamp_value(double v, double lo, double hi)
+{
   return std::max(lo, std::min(hi, v));
 }
-} // namespace
+}  // namespace
 
-FingerPlanarIk::FingerPlanarIk(const std::array<FingerModel, fingers_num>& models) : models_(models) {
-}
+FingerPlanarIk::FingerPlanarIk(const std::array<FingerModel, fingers_num> & models)
+: models_(models)
+{}
 
-FingerPlanarIk::Pose2D FingerPlanarIk::fk(int finger_idx, const std::array<double, dof>& q) const {
+FingerPlanarIk::Pose2D FingerPlanarIk::fk(int finger_idx, const std::array<double, dof> & q) const
+{
   Pose2D pose{0.0, 0.0, 0.0};
   double angle = 0.0;
 
@@ -46,14 +52,16 @@ FingerPlanarIk::Pose2D FingerPlanarIk::fk(int finger_idx, const std::array<doubl
   return pose;
 }
 
-void FingerPlanarIk::clamp_to_limits(int finger_idx, std::array<double, dof>& q) const {
+void FingerPlanarIk::clamp_to_limits(int finger_idx, std::array<double, dof> & q) const
+{
   for (int i = 0; i < dof; ++i) {
     q[i] = clamp_value(q[i], models_[finger_idx].joint_min[i], models_[finger_idx].joint_max[i]);
   }
 }
 
 std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shift_local(
-    int finger_idx, const std::array<double, dof>& current_q, double local_dy, double local_dz) const {
+  int finger_idx, const std::array<double, dof> & current_q, double local_dy, double local_dz) const
+{
   const Pose2D current_pose = fk(finger_idx, current_q);
 
   // Convert fingertip local frame displacement to the base y-z frame.
@@ -68,8 +76,9 @@ std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_shi
   return solve_ik(finger_idx, target, current_q);
 }
 
-std::optional<std::array<double, FingerPlanarIk::dof>>
-FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<double, dof>& current_q) const {
+std::optional<std::array<double, FingerPlanarIk::dof>> FingerPlanarIk::solve_ik(
+  int finger_idx, const Pose2D & target, const std::array<double, dof> & current_q) const
+{
   const double l1 = models_[finger_idx].link_lengths[0];
   const double l2 = models_[finger_idx].link_lengths[1];
   const double l3 = models_[finger_idx].link_lengths[2];
@@ -83,39 +92,39 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
   const double c = q3c - q1c - q2c;
 
   auto build_q = [&](double q1, double q2) {
-    std::array<double, dof> q{};
-    q[0] = q1;
-    q[1] = q2;
-    q[2] = q3c + (q1 - q1c) + (q2 - q2c);
-    return q;
-  };
+      std::array<double, dof> q{};
+      q[0] = q1;
+      q[1] = q2;
+      q[2] = q3c + (q1 - q1c) + (q2 - q2c);
+      return q;
+    };
 
-  auto residual = [&](double q1, double q2, double& ey, double& ez) {
-    const double a1 = q1;
-    const double a2 = q1 + q2;
-    const double a3 = 2.0 * (q1 + q2) + c; // q1 + q2 + q3
+  auto residual = [&](double q1, double q2, double & ey, double & ez) {
+      const double a1 = q1;
+      const double a2 = q1 + q2;
+      const double a3 = 2.0 * (q1 + q2) + c; // q1 + q2 + q3
 
-    const double y = l1 * std::sin(a1) + l2 * std::sin(a2) + l3 * std::sin(a3);
+      const double y = l1 * std::sin(a1) + l2 * std::sin(a2) + l3 * std::sin(a3);
 
-    const double z = l1 * std::cos(a1) + l2 * std::cos(a2) + l3 * std::cos(a3);
+      const double z = l1 * std::cos(a1) + l2 * std::cos(a2) + l3 * std::cos(a3);
 
-    ey = target.y - y;
-    ez = target.z - z;
-  };
+      ey = target.y - y;
+      ez = target.z - z;
+    };
 
   // Try multiple seeds to avoid poor local solutions.
   const std::vector<std::array<double, 2>> seeds = {{q1c, q2c},
-                                                    {q1c + 0.05, q2c},
-                                                    {q1c - 0.05, q2c},
-                                                    {q1c, q2c + 0.05},
-                                                    {q1c, q2c - 0.05},
-                                                    {q1c + 0.05, q2c + 0.05},
-                                                    {q1c - 0.05, q2c - 0.05}};
+    {q1c + 0.05, q2c},
+    {q1c - 0.05, q2c},
+    {q1c, q2c + 0.05},
+    {q1c, q2c - 0.05},
+    {q1c + 0.05, q2c + 0.05},
+    {q1c - 0.05, q2c - 0.05}};
 
   std::optional<std::array<double, dof>> best_q;
   double best_cost = std::numeric_limits<double>::infinity();
 
-  for (const auto& seed : seeds) {
+  for (const auto & seed : seeds) {
     double q1 = seed[0];
     double q2 = seed[1];
 
@@ -161,8 +170,8 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
     double ey = target.y - p_chk.y;
     double ez = target.z - p_chk.z;
     const double pos_err = std::sqrt(ey * ey + ez * ez);
-    const double joint_change =
-        std::abs(q_candidate[0] - q1c) + std::abs(q_candidate[1] - q2c) + std::abs(q_candidate[2] - q3c);
+    const double joint_change = std::abs(q_candidate[0] - q1c) + std::abs(q_candidate[1] - q2c) +
+      std::abs(q_candidate[2] - q3c);
 
     // Prefer low residual and smaller joint motion.
     const double cost = pos_err + 0.01 * joint_change;
@@ -179,8 +188,8 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
 
   // Reject the solution if the final position error is too large.
   const auto p_final = fk(finger_idx, *best_q);
-  const double final_err =
-      std::sqrt((target.y - p_final.y) * (target.y - p_final.y) + (target.z - p_final.z) * (target.z - p_final.z));
+  const double final_err = std::sqrt((target.y - p_final.y) * (target.y - p_final.y) +
+      (target.z - p_final.z) * (target.z - p_final.z));
 
   if (final_err > 5e-4) {
     return std::nullopt;
@@ -189,4 +198,4 @@ FingerPlanarIk::solve_ik(int finger_idx, const Pose2D& target, const std::array<
   return best_q;
 }
 
-} // namespace robotis_hand_tactile
+}  // namespace robotis_hand_tactile
