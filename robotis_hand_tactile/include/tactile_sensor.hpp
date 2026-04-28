@@ -1,11 +1,14 @@
 #pragma once
 
+#include <array>
+#include <optional>
+#include <utility>
+
 #include "rclcpp/rclcpp.hpp"
-#include "hx5d20_struct.h"
-#include "param.h"
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 
-#include <optional>
+#include "hx5d20_struct.h"
+#include "param.h"
 
 namespace robotis_hand_tactile {
 

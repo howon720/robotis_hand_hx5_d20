@@ -1,11 +1,5 @@
 #pragma once
 
-#include "rclcpp/rclcpp.hpp"
-#include "hx5d20_struct.h"
-#include "hx5d20_init.hpp"
-#include "finger_ik_solver.hpp"
-#include "param.h"
-
 #include <array>
 #include <map>
 #include <memory>
@@ -13,8 +7,14 @@
 #include <string>
 #include <vector>
 
+#include "rclcpp/rclcpp.hpp"
+
+#include "finger_ik_solver.hpp"
+#include "hx5d20_init.hpp"
+#include "hx5d20_struct.h"
+#include "param.h"
+
 namespace robotis_hand_tactile {
-typedef std::array<double, tactiles_num> PressureArray;
 typedef std::array<double, 4> JointValueArray;
 
 class TactileCorrectionPlanner;

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "hx5d20_struct.h"
-#include "tactile_grasp_controller.hpp"
-
 #include <string>
 
+#include "hx5d20_struct.h"
+
 namespace robotis_hand_tactile {
+
+class TactileGraspController;
 
 /**
  * @brief Plans and applies tactile CoP-based correction motions.

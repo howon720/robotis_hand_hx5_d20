@@ -1,24 +1,24 @@
 #pragma once
 
-#include <rclcpp/rclcpp.hpp>
-#include <visualization_msgs/msg/marker_array.hpp>
-#include <visualization_msgs/msg/marker.hpp>
-#include <std_msgs/msg/float32_multi_array.hpp>
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <chrono>
+#include <cmath>
+#include <mutex>
+#include <numeric>
+#include <string>
+#include <vector>
+
 #include <geometry_msgs/msg/point.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/float32.hpp>
+#include <std_msgs/msg/float32_multi_array.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include "robotis_interfaces/msg/hand_pressures.hpp"
 #include "robotis_interfaces/msg/tactile_sensor.hpp"
-#include "std_msgs/msg/float32.hpp"
-
-#include <array>
-#include <vector>
-#include <string>
-#include <mutex>
-#include <numeric>
-#include <cmath>
-#include <algorithm>
-#include <chrono>
-#include <cctype>
 
 /**
  * @brief RViz marker publisher for tactile force and CoP visualization.

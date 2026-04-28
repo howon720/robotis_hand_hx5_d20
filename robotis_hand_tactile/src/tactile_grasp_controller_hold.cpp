@@ -183,10 +183,10 @@ void TactileGraspController::handle_close() {
   // Switch to HOLD when all fingers are contacted.
   if (all_contacted()) {
     set_desired_force();
-    state_ = State::HOLD;
-    RCLCPP_INFO(this->get_logger(), "State -> HOLD");
-    // state_ = State::IDLE;
-    // RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
+    // state_ = State::HOLD;
+    // RCLCPP_INFO(this->get_logger(), "State -> HOLD");
+    state_ = State::IDLE;
+    RCLCPP_INFO(this->get_logger(), "State -> IDLE"); // pinch
   }
 }
 

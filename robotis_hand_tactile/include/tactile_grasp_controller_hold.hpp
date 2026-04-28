@@ -1,21 +1,21 @@
 #pragma once
 
+#include <array>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+
 #include "rclcpp/rclcpp.hpp"
+#include "robotis_interfaces/msg/hand_pressures.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
-#include "robotis_interfaces/msg/hand_pressures.hpp"
 
 #include "hx5d20_struct.h"
 #include "tactile_sensor.hpp"
-
-#include <array>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-#include <mutex>
 
 namespace robotis_hand_tactile_hold {
 

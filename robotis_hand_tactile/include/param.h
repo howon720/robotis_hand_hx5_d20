@@ -1,9 +1,8 @@
 #pragma once
 
-#include "rclcpp/rclcpp.hpp"
-
 #include <vector>
-#include <cstdint>
+
+#include "rclcpp/rclcpp.hpp"
 
 namespace robotis_hand_tactile {
 

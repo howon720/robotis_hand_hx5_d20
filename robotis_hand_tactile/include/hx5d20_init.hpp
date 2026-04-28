@@ -1,8 +1,9 @@
 #pragma once
 
-#include "hx5d20_struct.h"
 #include <string>
 #include <vector>
+
+#include "hx5d20_struct.h"
 
 namespace robotis_hand_tactile {
 

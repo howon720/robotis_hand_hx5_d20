@@ -1,17 +1,16 @@
 #pragma once
 
+#include <mutex>
+
 #include "rclcpp/rclcpp.hpp"
+#include "robotis_interfaces/msg/hand_pressures.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
-#include "robotis_interfaces/msg/hand_pressures.hpp"
 
 #include "tactile_grasp_controller.hpp"
 #include "tactile_sensor.hpp"
-#include "param.h"
-
-#include <mutex>
 
 namespace robotis_hand_tactile {
 

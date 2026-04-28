@@ -1,4 +1,5 @@
 #include "tactile_correction_planner.hpp"
+#include "tactile_grasp_controller.hpp"
 
 namespace robotis_hand_tactile {
 
