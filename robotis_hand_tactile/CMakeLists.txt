@@ -50,19 +50,20 @@ ament_target_dependencies(tactile_grasp_controller_node ${ROS2_PACKAGES})
 install(TARGETS tactile_grasp_controller_node
         DESTINATION lib/${PROJECT_NAME})
 
-add_executable(tactile_grasp_controller_hold 
-              src/tactile_grasp_controller_hold.cpp
+add_executable(tactile_hold_controller 
+              src/tactile_hold_controller.cpp
               src/tactile_sensor.cpp
               src/hx5d20_init.cpp
               src/param.cpp)
-target_include_directories(tactile_grasp_controller_hold PUBLIC
+target_include_directories(tactile_hold_controller PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(tactile_grasp_controller_hold ${ROS2_PACKAGES})
-install(TARGETS tactile_grasp_controller_hold
+ament_target_dependencies(tactile_hold_controller ${ROS2_PACKAGES})
+install(TARGETS tactile_hold_controller
         DESTINATION lib/${PROJECT_NAME})
 
 install(PROGRAMS
+  scripts/grasp_start_keyboard.py
   scripts/visualize_tactile.py
   DESTINATION lib/${PROJECT_NAME}
 )

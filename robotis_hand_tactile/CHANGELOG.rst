@@ -2,7 +2,7 @@
 Changelog for package robotis_hand_tactile
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-0.0.1 (2026-04-28)
+0.1.0 (2026-04-28)
 ------------------
 * Added CoP-based optimization grasping controller
 * Added total force-based holding controller

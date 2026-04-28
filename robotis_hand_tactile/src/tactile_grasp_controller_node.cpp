@@ -1,3 +1,19 @@
+// Copyright 2026 ROBOTIS CO., LTD.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Author: Howon Kim
+
 #include "tactile_grasp_controller_node.hpp"
 
 using namespace std::chrono_literals;
@@ -21,8 +37,8 @@ TactileGraspControllerNode::TactileGraspControllerNode()
   joint_state_sub_ = this->create_subscription<JointStateMsg>(
       "/joint_states", 10, std::bind(&TactileGraspControllerNode::on_joint_state, this, std::placeholders::_1));
 
-  grasp_state_sub_ = this->create_subscription<Int32Msg>(
-      "/grasp_state", 10, std::bind(&TactileGraspControllerNode::on_grasp_state, this, std::placeholders::_1));
+  grasp_start_sub_ = this->create_subscription<BoolMsg>(
+      "/grasp_start", 10, std::bind(&TactileGraspControllerNode::on_grasp_start, this, std::placeholders::_1));
 
   // Initialize ROS publishers.
   traj_pub_ = this->create_publisher<JointTrajectoryMsg>("/right_hand_controller/joint_trajectory", 10);
@@ -64,16 +80,21 @@ void TactileGraspControllerNode::on_joint_state(const JointStatePtr msg) {
   joint_received_ = true;
 }
 
-void TactileGraspControllerNode::on_grasp_state(const Int32Ptr msg) {
+void TactileGraspControllerNode::on_grasp_start(const BoolPtr msg) {
   std::lock_guard<std::mutex> lock(mutex_);
-  // Start grasping when grasp_state is 3.
-  if (msg->data == 3) {
+  // Start grasping when /grasp_start receives true.
+  if (msg->data) {
     if (state_ == State::IDLE) {
       reset_grasp();
       state_ = State::CLOSE;
-      RCLCPP_INFO(this->get_logger(), "Start Grasping");
+      RCLCPP_INFO(this->get_logger(), "grasp_start=true received -> State = CLOSE");
     }
+    return;
   }
+
+  reset_to_init();
+  publish_traj();
+  RCLCPP_INFO(this->get_logger(), "grasp_start=false received -> State = IDLE");
 }
 
 void TactileGraspControllerNode::control_loop() {
